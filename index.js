@@ -6,7 +6,7 @@ app.use(bodyParser.json());
 
 // Verification endpoint
 app.get('/webhook', (req, res) => {
-    console.log(req.body,"pppp");
+    console.log(req.body,"pppp",req.query,req.params);
   const mode = req.query['hub.mode'];
   const token = req.query['hub.verify_token'];
   const challenge = req.query['hub.challenge'];
