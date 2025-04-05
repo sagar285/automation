@@ -4,6 +4,14 @@ const bodyParser = require('body-parser');
 
 app.use(bodyParser.json());
 
+
+// insta app id
+// 2901287790027729
+
+// insta app secret
+// 27e047e52de1d98e09e2912002b9667a
+
+
 // Verification endpoint
 app.get('/webhook', (req, res) => {
     console.log(req.body,"pppp",req.query,req.params);
@@ -24,9 +32,22 @@ app.get('/webhook', (req, res) => {
 
 // Webhook event handler
 app.post('/webhook', (req, res) => {
-  console.log('Webhook event received:', req.body);
+  console.log('Webhook event received:',req.body.entry[0].messaging);
   // Process the webhook event here
   res.sendStatus(200);
 });
+
+app.get("/ngrok",(req,res)=>{
+  console.log(req.params,req.query,"console from ngrok")
+  res.send("Ngrok is up and running")
+})
+
+
+app.get("/instagram",(req,res)=>{
+    console.log(req.params,req.query,"console from ints")
+})
+app.get("/instagram",(req,res)=>{
+    console.log(req.params,req.query,"console from ints")
+})
 
 app.listen(3000, () => console.log('Server is running'));
