@@ -26,7 +26,7 @@ app.get('/webhook', (req, res) => {
     res.status(200).send(challenge);
   } else {
     console.error('Verification failed');
-    res.sendStatus(403);
+    res.status(200).send({message:"get request succesfully available"});
   }
 });
 
