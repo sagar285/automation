@@ -1,0 +1,50 @@
+const controller = require("../controller/user");
+
+const router = require("express").Router();
+
+router.post("/email-signup",controller.email_signup);
+
+
+router.post("/verify_otp",controller.verify_otp)
+
+router.get("/auth/google/callback",controller.google_callback)
+
+router.get("/auth/google", controller.google_auth);
+
+// In your Express routes
+router.get('/auth/instagram', (req, res) => {
+    // Generate the Instagram OAuth URL
+    const INSTAGRAM_APP_ID = ""
+    const INSTAGRAM_REDIRECT_URI ="https://insta.fliqr.ai/auth/instagram/callback"
+    const instagramAuthUrl = `https://api.instagram.com/oauth/authorize?client_id=${INSTAGRAM_APP_ID}&redirect_uri=${encodeURIComponent(INSTAGRAM_REDIRECT_URI)}&scope=user_profile,user_media&response_type=code`;
+    
+    res.redirect(instagramAuthUrl);
+  });
+  
+  router.get('/auth/instagram/callback', async (req, res) => {
+    const { code } = req.query;
+
+    console.log(code,"codeeddd");
+    
+    try {
+      // Exchange code for access token
+      // Save the Instagram account to the user's profile
+      // Redirect back to the frontend
+      res.redirect(`${process.env.FRONTEND_URL}/instagram/success`);
+    } catch (error) {
+      res.redirect(`${process.env.FRONTEND_URL}/instagram/error?message=${encodeURIComponent(error.message)}`);
+    }
+  });
+
+
+
+
+
+  
+
+
+
+module.exports = router;
+
+
+

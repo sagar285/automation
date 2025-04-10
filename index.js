@@ -1,8 +1,18 @@
 const express = require('express');
 const app = express();
 const bodyParser = require('body-parser');
+const dbpool = require("./dbmanager");
+const router = require("./router/route");
+const cors =require("cors")
+const dotenv = require("dotenv")
 
-app.use(bodyParser.json());
+dotenv.config({})
+
+app.use(express.json());
+app.use(cors({
+  origin:"*"
+}))
+app.use(router);
 
 
 // insta app id
@@ -10,6 +20,10 @@ app.use(bodyParser.json());
 
 // insta app secret
 // 27e047e52de1d98e09e2912002b9667a
+
+
+// supabse password
+// Postgres@123
 
 
 // Verification endpoint
@@ -43,6 +57,7 @@ app.get("/ngrok",(req,res)=>{
 })
 
 
+
 app.get("/instagram",(req,res)=>{
     console.log(req.params,req.query,"console from ints")
 })
@@ -50,4 +65,4 @@ app.get("/instagram",(req,res)=>{
     console.log(req.params,req.query,"console from ints")
 })
 
-app.listen(3000, () => console.log('Server is running'));
+app.listen(5000, () => console.log('Server is running'));
