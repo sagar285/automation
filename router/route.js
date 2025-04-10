@@ -16,8 +16,13 @@ router.get('/auth/instagram', (req, res) => {
     // Generate the Instagram OAuth URL
     const INSTAGRAM_APP_ID = "2901287790027729"
     const INSTAGRAM_REDIRECT_URI ="https://insta.fliqr.ai/auth/instagram/callback"
-    const instagramAuthUrl = `https://api.instagram.com/oauth/authorize?client_id=${INSTAGRAM_APP_ID}&redirect_uri=${encodeURIComponent(INSTAGRAM_REDIRECT_URI)}&scope=user_profile,user_media&response_type=code`;
-    
+    const scope = [
+        'instagram_business_basic',
+        'instagram_business_manage_messages',
+        'instagram_business_manage_comments',
+        'instagram_business_content_publish'
+      ].join(',');
+      const instagramAuthUrl = `https://www.instagram.com/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scope}`;
     res.redirect(instagramAuthUrl);
   });
   
