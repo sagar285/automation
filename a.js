@@ -13,3 +13,6 @@ https://www.instagram.com/oauth/authorize?enable_fb_login=0&force_authentication
     "token_type": "bearer",
     "expires_in": 5184000
 }
+
+
+https://www.instagram.com/oauth/authorize/?client_id&redirect_uri=https%3A%2F%2Finsta.fliqr.ai%2Fauth%2Finstagram%2Fcallback&scope=user_profile%2Cuser_media&response_type=code&__coig_login=1

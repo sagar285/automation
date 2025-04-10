@@ -52,7 +52,6 @@ app.post('/webhook', (req, res) => {
 });
 
 app.get("/ngrok",(req,res)=>{
-  console.log(req.params,req.query,"console from ngrok")
   res.send("Ngrok is up and running")
 })
 
