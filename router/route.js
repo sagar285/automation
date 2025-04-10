@@ -14,8 +14,8 @@ router.get("/auth/google", controller.google_auth);
 // In your Express routes
 router.get('/auth/instagram', (req, res) => {
     // Generate the Instagram OAuth URL
-    const INSTAGRAM_APP_ID = "2901287790027729"
-    const INSTAGRAM_REDIRECT_URI ="https://insta.fliqr.ai/auth/instagram/callback"
+    const clientId = "2901287790027729"
+    const redirectUri ="https://insta.fliqr.ai/auth/instagram/callback"
     const scope = [
         'instagram_business_basic',
         'instagram_business_manage_messages',
