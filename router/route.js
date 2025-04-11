@@ -46,8 +46,8 @@ router.get('/auth/instagram/:id', (req, res) => {
     const { code,state } = req.query;
 
     console.log(code,"codeeddd",state);
-    const userIdd = authCache.get(state);
-    console.log(userIdd,"useridddddddd");
+    // const userIdd = authCache.get(state);
+    // console.log(userIdd,"useridddddddd");
 
     const tokenResponse = await axios.post('https://api.instagram.com/oauth/access_token', 
         new URLSearchParams({
