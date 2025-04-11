@@ -40,8 +40,8 @@ router.get('/auth/instagram/:id', (req, res) => {
   router.get('/auth/instagram/callback', async (req, res) => {
     const { code,state } = req.query;
 
-    let decodedState = {};
     console.log(code,"codeeddd",state);
+    let decodedState = {};
     try {
       decodedState = JSON.parse(Buffer.from(state, 'base64').toString());
     } catch (e) {
