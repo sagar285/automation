@@ -181,6 +181,80 @@ const verify_otp = async (req, res) => {
 
 
 
+const instagram_accounts = async(req, res) => {
+  const userId = req.user.userId;
+  try {
+    // First, fetch the basic account records from database
+    const { rows } = await pool.query(
+      'SELECT id, account_id, access_token, username, profile_picture FROM instagram_accounts WHERE user_id = $1',
+      [userId]
+    );
+    
+    // If no accounts found, return empty array
+    if (rows.length === 0) {
+      return res.status(200).json({ 
+        success: true, 
+        accounts: [],
+        message: "No Instagram accounts connected" 
+      });
+    }
+    
+    // Fetch additional details from Instagram API for each account
+    const enrichedAccounts = await Promise.all(rows.map(async (account) => {
+      try {
+        // Make API call to Instagram Graph API
+        const response = await axios.get(`https://graph.instagram.com/me`, {
+          params: {
+            fields: 'id,username,account_type,media_count,profile_picture_url,followers_count,follows_count',
+            access_token: account.access_token
+          }
+        });
+        
+        // Combine database data with Instagram API data
+        return {
+          id: account.id,
+          accountId: account.account_id,
+          username: response.data.username || account.username,
+          accountType: response.data.account_type || 'Business',
+          mediaCount: response.data.media_count || 0,
+          followersCount: response.data.followers_count || 0,
+          followsCount: response.data.follows_count || 0,
+          profile_picture: response.data.profile_picture_url || account.profile_picture || null
+        };
+      } catch (error) {
+        console.error(`Error fetching Instagram data for account ${account.id}:`, error.message);
+        
+        // Return basic account data if API call fails
+        return {
+          id: account.id,
+          accountId: account.account_id,
+          username: account.username || 'Unknown',
+          accountType: 'Business',
+          profile_picture: account.profile_picture || null,
+          error: 'Could not fetch latest data'
+        };
+      }
+    }));
+    
+    return res.status(200).json({
+      success: true,
+      accounts: enrichedAccounts,
+      count: enrichedAccounts.length
+    });
+    
+  } catch (error) {
+    console.error('Error fetching Instagram accounts:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+};
+
+
+
+
+
 
 // Google auth route - redirects to Google
 const google_auth = (req, res) => {
@@ -335,6 +409,7 @@ const deleteUserById = async (req, res) => {
 
 
 module.exports ={
+  instagram_accounts,
   userProfile,
   google_auth,
   google_callback,
