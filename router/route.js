@@ -41,6 +41,18 @@ router.get('/auth/instagram/:id', (req, res) => {
     const { code,state } = req.query;
 
     console.log(code,"codeeddd");
+    let decodedState = {};
+    try {
+      decodedState = JSON.parse(Buffer.from(state, 'base64').toString());
+    } catch (e) {
+      throw new Error('Invalid state parameter');
+    }
+    
+    const currentuserid = decodedState.userId;
+    if (!currentuserid) {
+      throw new Error('User ID not found in state');
+    }
+
 
     const tokenResponse = await axios.post('https://api.instagram.com/oauth/access_token', 
         new URLSearchParams({
@@ -76,7 +88,7 @@ router.get('/auth/instagram/:id', (req, res) => {
 
       await pool.query(
         'INSERT INTO instagram_accounts (user_id, account_id, access_token, token_expires_at) VALUES ($1, $2, $3, $4)',
-        [state, userId, longLivedToken, expirationDate]
+        [currentuserid, userId, longLivedToken, expirationDate]
       );
 
 
