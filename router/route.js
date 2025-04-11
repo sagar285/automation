@@ -6,6 +6,7 @@ const authMiddleware = require("../middleware/auth");
 const crypto = require("crypto");
 const NodeCache = require('node-cache');
 const authCache = new NodeCache({ stdTTL: 600 });
+const jwt = require('jsonwebtoken');
 
 router.post("/email-signup",controller.email_signup);
 
