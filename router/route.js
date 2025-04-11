@@ -33,7 +33,7 @@ router.get('/auth/instagram/:id', (req, res) => {
         'instagram_business_manage_comments',
         'instagram_business_content_publish'
       ].join(',');
-      const instagramAuthUrl = `https://www.instagram.com/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scope}&state=${state}`;
+      const instagramAuthUrl = `https://www.instagram.com/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scope}&state=${currentUserId}`;
     res.redirect(instagramAuthUrl);
   });
   
@@ -41,18 +41,7 @@ router.get('/auth/instagram/:id', (req, res) => {
     const { code,state } = req.query;
 
     console.log(code,"codeeddd",state);
-    let decodedState = {};
-    try {
-      decodedState = JSON.parse(Buffer.from(state, 'base64').toString());
-    } catch (e) {
-      throw new Error('Invalid state parameter');
-    }
-    
-    const currentuserid = decodedState.userId;
-    console.log(currentuserid,"currentuserif");
-    if (!currentuserid) {
-      throw new Error('User ID not found in state');
-    }
+  
 
 
     const tokenResponse = await axios.post('https://api.instagram.com/oauth/access_token', 
@@ -89,7 +78,7 @@ router.get('/auth/instagram/:id', (req, res) => {
 
       await pool.query(
         'INSERT INTO instagram_accounts (user_id, account_id, access_token, token_expires_at) VALUES ($1, $2, $3, $4)',
-        [currentuserid, userId, longLivedToken, expirationDate]
+        [state, userId, longLivedToken, expirationDate]
       );
 
 
