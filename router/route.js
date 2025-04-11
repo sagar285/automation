@@ -4,6 +4,8 @@ const router = require("express").Router();
 const axios = require("axios");
 const authMiddleware = require("../middleware/auth");
 const crypto = require("crypto");
+const NodeCache = require('node-cache');
+const authCache = new NodeCache({ stdTTL: 600 });
 
 router.post("/email-signup",controller.email_signup);
 
@@ -20,9 +22,13 @@ router.get("/deleteuser/:userId", controller.deleteUserById);
 router.get("/getuserinfo",authMiddleware,controller.userProfile)
 
 // In your Express routes
-router.get('/auth/instagram', (req, res) => {
-  
+router.get('/auth/instagram/:id', (req, res) => {
+  const currentUserId = req.params.id;
   const state = crypto.randomBytes(16).toString('hex');
+
+   // Store user ID in cache with state as key
+   authCache.set(state, currentUserId);
+
     // Generate the Instagram OAuth URL
     const clientId = "2901287790027729"
     const redirectUri ="https://insta.fliqr.ai/auth/instagram/callback"
@@ -40,6 +46,8 @@ router.get('/auth/instagram', (req, res) => {
     const { code,state } = req.query;
 
     console.log(code,"codeeddd",state);
+    const userIdd = authCache.get(state);
+    console.log(userIdd,"useridddddddd");
 
     const tokenResponse = await axios.post('https://api.instagram.com/oauth/access_token', 
         new URLSearchParams({
