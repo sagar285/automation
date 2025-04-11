@@ -22,7 +22,7 @@ router.get("/deleteuser/:userId", controller.deleteUserById);
 router.get("/getuserinfo",authMiddleware,controller.userProfile)
 
 // In your Express routes
-router.get('/auth/instagram/',authMiddleware, (req, res) => {
+router.get('/auth/instagram/',(req, res) => {
   const currentUserId = req.params.id;
   const state = crypto.randomBytes(16).toString('hex');
   const userId = req.user.userId;

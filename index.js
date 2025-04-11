@@ -5,10 +5,12 @@ const dbpool = require("./dbmanager");
 const router = require("./router/route");
 const cors =require("cors")
 const dotenv = require("dotenv")
+const cookieParser = require('cookie-parser');
 
 dotenv.config({})
 
 app.use(express.json());
+app.use(cookieParser());
 app.use(cors({
   origin:"*"
 }))
