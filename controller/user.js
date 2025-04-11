@@ -106,9 +106,10 @@ const verify_otp = async (req, res) => {
       { expiresIn: '7d' }
     );
     
-    res.cookie('auth_token', token, {
+    await res.cookie('auth_token', token, {
       httpOnly: true,
-      secure:false,
+      secure: true, // Must be true for cross-origin with HTTPS
+      sameSite: 'none',
       maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
     });
     // Store session
@@ -259,7 +260,8 @@ const google_callback = async (req, res) => {
     );
     res.cookie('auth_token', token, {
       httpOnly: true,
-      secure:false,
+      secure: true, // Must be true for cross-origin with HTTPS
+      sameSite: 'none',
       maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
     });
     
