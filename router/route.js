@@ -3,7 +3,7 @@ const {pool} = require("../dbmanager")
 const router = require("express").Router();
 const axios = require("axios");
 const authMiddleware = require("../middleware/auth");
-const crytpo = require("crypto");
+const crypto = require("crypto");
 
 router.post("/email-signup",controller.email_signup);
 
