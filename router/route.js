@@ -2,6 +2,7 @@ const controller = require("../controller/user");
 const {pool} = require("../dbmanager")
 const router = require("express").Router();
 const axios = require("axios");
+const authMiddleware = require("../middleware/auth");
 
 router.post("/email-signup",controller.email_signup);
 
@@ -14,6 +15,8 @@ router.get("/auth/google", controller.google_auth);
 
 
 router.get("/deleteuser/:userId", controller.deleteUserById);
+
+router.get("/getuserinfo",authMiddleware,controller.userProfile)
 
 // In your Express routes
 router.get('/auth/instagram', (req, res) => {
