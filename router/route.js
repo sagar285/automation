@@ -2,10 +2,6 @@ const controller = require("../controller/user");
 const {pool} = require("../dbmanager")
 const router = require("express").Router();
 const axios = require("axios");
-const authMiddleware = require("../middleware/auth");
-const NodeCache = require('node-cache');
-const authCache = new NodeCache({ stdTTL: 600 });
-const crypto = require("crypto");
 
 router.post("/email-signup",controller.email_signup);
 
@@ -19,23 +15,9 @@ router.get("/auth/google", controller.google_auth);
 
 router.get("/deleteuser/:userId", controller.deleteUserById);
 
-
-router.get("/getuserinfo",authMiddleware,controller.userProfile);
-
 // In your Express routes
-router.get('/auth/instagram/:id', (req, res) => {
-
-  // store somewhere only till that storing 
-  const currentUserId = req.params.id;
+router.get('/auth/instagram', (req, res) => {
   
-  // Generate a unique temp auth ID
-  const tempAuthId = crypto.randomBytes(16).toString('hex');
-  
-  // Store in cache
-  authCache.set(tempAuthId, {
-    userId: currentUserId,
-    createdAt: new Date()
-  });
     // Generate the Instagram OAuth URL
     const clientId = "2901287790027729"
     const redirectUri ="https://insta.fliqr.ai/auth/instagram/callback"
@@ -50,26 +32,9 @@ router.get('/auth/instagram/:id', (req, res) => {
   });
   
   router.get('/auth/instagram/callback', async (req, res) => {
-    const { code, } = req.query;
+    const { code } = req.query;
 
     console.log(code,"codeeddd");
-  
-
-    // const tempAuthId = req.session.tempAuthId;
-  
-    // if (!tempAuthId) {
-    //   return res.status(400).json({ error: 'No authentication session found' });
-    // }
-    
-    // Retrieve user data from cache
-    // const userData = authCache.get(tempAuthId);
-    
-    // if (!userData) {
-    //   return res.status(400).json({ error: 'Authentication session expired' });
-    // }
-
-    // const loginuserId = userData.userId;
-
 
     const tokenResponse = await axios.post('https://api.instagram.com/oauth/access_token', 
         new URLSearchParams({
@@ -105,11 +70,8 @@ router.get('/auth/instagram/:id', (req, res) => {
 
       // await pool.query(
       //   'INSERT INTO instagram_accounts (user_id, account_id, access_token, token_expires_at) VALUES ($1, $2, $3, $4)',
-      //   [loginuserId, userId, longLivedToken, expirationDate]
+      //   [currentUserId, userId, longLivedToken, expirationDate]
       // );
-
-      // authCache.del(tempAuthId);
-      // delete req.session.tempAuthId;
 
 
     
