@@ -40,8 +40,8 @@ router.get('/auth/instagram/:id', (req, res) => {
   router.get('/auth/instagram/callback', async (req, res) => {
     const { code,state } = req.query;
 
-    console.log(code,"codeeddd");
     let decodedState = {};
+    console.log(code,"codeeddd",state);
     try {
       decodedState = JSON.parse(Buffer.from(state, 'base64').toString());
     } catch (e) {
@@ -49,6 +49,7 @@ router.get('/auth/instagram/:id', (req, res) => {
     }
     
     const currentuserid = decodedState.userId;
+    console.log(currentuserid,"currentuserif");
     if (!currentuserid) {
       throw new Error('User ID not found in state');
     }
