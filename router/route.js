@@ -1,6 +1,7 @@
 const controller = require("../controller/user");
 
 const router = require("express").Router();
+const axios = require("axios");
 
 router.post("/email-signup",controller.email_signup);
 
@@ -30,6 +31,45 @@ router.get('/auth/instagram', (req, res) => {
     const { code } = req.query;
 
     console.log(code,"codeeddd");
+
+    const tokenResponse = await axios.post('https://api.instagram.com/oauth/access_token', 
+        new URLSearchParams({
+          client_id: process.env.INSTAGRAM_APP_ID,
+          client_secret: process.env.INSTAGRAM_APP_SECRET,
+          grant_type: 'authorization_code',
+          redirect_uri: 'https://insta.fliqr.ai/auth/instagram/callback',
+          code: code
+        }),
+        {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+          }
+        }
+      );
+      
+      const shortLivedToken = tokenResponse.data.access_token;
+      const userId = tokenResponse.data.user_id;
+
+      const longLivedResponse = await axios.get('https://graph.instagram.com/access_token', {
+        params: {
+          grant_type: 'ig_exchange_token',
+          client_secret: process.env.INSTAGRAM_APP_SECRET,
+          access_token: shortLivedToken 
+        }
+      });
+      
+      const longLivedToken = longLivedResponse.data.access_token;
+      const expiresIn = longLivedResponse.data.expires_in;
+
+      const expirationDate = new Date();
+      expirationDate.setSeconds(expirationDate.getSeconds() + expiresIn);
+
+      await pool.query(
+        'INSERT INTO instagram_accounts (user_id, account_id, access_token, token_expires_at) VALUES ($1, $2, $3, $4)',
+        [currentUserId, userId, longLivedToken, expirationDate]
+      );
+
+
     
     try {
       // Exchange code for access token
