@@ -23,12 +23,12 @@ router.get("/getuserinfo",authMiddleware,controller.userProfile)
 
 // In your Express routes
 router.get('/auth/instagram/',(req, res) => {
-  const currentUserId = req.params.id;
+ 
   const state = crypto.randomBytes(16).toString('hex');
-  const userId = req.user.userId;
+
+  const token =req.cookies.auth_token
 
    // Store user ID in cache with state as key
-   authCache.set(state, userId.toString());
 
     // Generate the Instagram OAuth URL
     const clientId = "2901287790027729"
@@ -39,16 +39,15 @@ router.get('/auth/instagram/',(req, res) => {
         'instagram_business_manage_comments',
         'instagram_business_content_publish'
       ].join(',');
-      const instagramAuthUrl = `https://www.instagram.com/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scope}&state=${state}`;
+      const instagramAuthUrl = `https://www.instagram.com/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scope}&state=${token}`;
     res.redirect(instagramAuthUrl);
   });
   
   router.get('/auth/instagram/callback', async (req, res) => {
     const { code,state } = req.query;
 
-    console.log(code,"codeeddd",state);
-    const userIdd = authCache.get(state);
-    console.log(userIdd,"useridddddddd");
+     console.log(state,"ooooooo");
+
 
     const tokenResponse = await axios.post('https://api.instagram.com/oauth/access_token', 
         new URLSearchParams({
