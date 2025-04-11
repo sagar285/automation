@@ -48,7 +48,9 @@ router.get('/auth/instagram/',(req, res) => {
 
      console.log(state,"ooooooo");
 
-
+     const decoded = jwt.verify(state, process.env.JWT_SECRET);
+    console.log(decoded,"decorddddd");
+    //  const userId = req.user.userId;
     const tokenResponse = await axios.post('https://api.instagram.com/oauth/access_token', 
         new URLSearchParams({
           client_id: process.env.INSTAGRAM_APP_ID,
