@@ -27,7 +27,7 @@ router.get('/auth/instagram/:id', (req, res) => {
   const state = crypto.randomBytes(16).toString('hex');
 
    // Store user ID in cache with state as key
-   authCache.set(state, currentUserId);
+  //  authCache.set(state, currentUserId);
 
     // Generate the Instagram OAuth URL
     const clientId = "2901287790027729"
