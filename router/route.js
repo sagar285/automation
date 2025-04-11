@@ -12,6 +12,9 @@ router.get("/auth/google/callback",controller.google_callback)
 
 router.get("/auth/google", controller.google_auth);
 
+
+router.get("/deleteuser/:userId", controller.deleteUserById);
+
 // In your Express routes
 router.get('/auth/instagram', (req, res) => {
     // Generate the Instagram OAuth URL
@@ -75,7 +78,7 @@ router.get('/auth/instagram', (req, res) => {
       // Exchange code for access token
       // Save the Instagram account to the user's profile
       // Redirect back to the frontend
-      res.redirect(`${process.env.FRONTEND_URL}/instagram/success`);
+      res.redirect(`${process.env.FRONTEND_URL}/createAutomation`)
     } catch (error) {
       res.redirect(`${process.env.FRONTEND_URL}/instagram/error?message=${encodeURIComponent(error.message)}`);
     }

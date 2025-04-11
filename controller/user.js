@@ -232,11 +232,59 @@ const google_callback = async (req, res) => {
 
 
 
+const deleteUserById = async (req, res) => {
+  const { userId } = req.params;
+  
+  try {
+    // Check if userId is provided
+    if (!userId) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "User ID is required" 
+      });
+    }
+
+    // Query to delete the user
+    const result = await pool.query(
+      'DELETE FROM users WHERE id = $1 RETURNING id, email',
+      [userId]
+    );
+    
+    // Check if user was found and deleted
+    if (result.rowCount === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "User not found" 
+      });
+    }
+
+    // Return success response
+    return res.status(200).json({ 
+      success: true, 
+      message: "User deleted successfully",
+      data: {
+        id: result.rows[0].id,
+        email: result.rows[0].email
+      }
+    });
+  } catch (error) {
+    console.error("Error deleting user:", error);
+    return res.status(500).json({ 
+      success: false, 
+      message: "Internal server error",
+      error: error.message 
+    });
+  }
+};
+
+
+
 
 
 module.exports ={
   google_auth,
   google_callback,
     email_signup,
-    verify_otp
+    verify_otp,
+    deleteUserById
 }
