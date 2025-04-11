@@ -1,5 +1,5 @@
 const controller = require("../controller/user");
-
+const {pool} = require("../dbmanager")
 const router = require("express").Router();
 const axios = require("axios");
 
