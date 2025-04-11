@@ -134,6 +134,47 @@ const verify_otp = async (req, res) => {
 
 
 
+// Apply auth middleware to protect this route
+ const userProfile =async (req, res) => {
+  try {
+    // Get user ID from the decoded token
+    const userId = req.user.userId;
+    
+    // Query the database for user profile
+    const result = await pool.query(
+      `SELECT id,email,  full_name, profile_picture, is_verified, created_at 
+       FROM users 
+       WHERE id = $1`,
+      [userId]
+    );
+    
+    // Check if user exists
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    // Return user profile data
+    const user = result.rows[0];
+    
+    res.status(200).json({
+      user: {
+        id: user.id,
+        name: user.full_name,
+        email: user.email,
+        avatarUrl: user.profile_picture,
+        createdAt: user.created_at
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching user profile:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+
+
+
+
 
 // Google auth route - redirects to Google
 const google_auth = (req, res) => {
@@ -282,6 +323,7 @@ const deleteUserById = async (req, res) => {
 
 
 module.exports ={
+  userProfile,
   google_auth,
   google_callback,
     email_signup,

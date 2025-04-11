@@ -2,6 +2,7 @@ const controller = require("../controller/user");
 const {pool} = require("../dbmanager")
 const router = require("express").Router();
 const axios = require("axios");
+const authMiddleware = require("../middleware/auth");
 
 router.post("/email-signup",controller.email_signup);
 
@@ -15,8 +16,14 @@ router.get("/auth/google", controller.google_auth);
 
 router.get("/deleteuser/:userId", controller.deleteUserById);
 
+
+router.get("/getuserinfo",authMiddleware,controller.userProfile);
+
 // In your Express routes
-router.get('/auth/instagram', (req, res) => {
+router.get('/auth/instagram/:id', (req, res) => {
+
+  const currentUserId = req.params.id;
+  const state = Buffer.from(JSON.stringify({ userId: currentUserId })).toString('base64');
     // Generate the Instagram OAuth URL
     const clientId = "2901287790027729"
     const redirectUri ="https://insta.fliqr.ai/auth/instagram/callback"
@@ -26,12 +33,12 @@ router.get('/auth/instagram', (req, res) => {
         'instagram_business_manage_comments',
         'instagram_business_content_publish'
       ].join(',');
-      const instagramAuthUrl = `https://www.instagram.com/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scope}`;
+      const instagramAuthUrl = `https://www.instagram.com/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scope}&state=${state}`;
     res.redirect(instagramAuthUrl);
   });
   
   router.get('/auth/instagram/callback', async (req, res) => {
-    const { code } = req.query;
+    const { code,state } = req.query;
 
     console.log(code,"codeeddd");
 
@@ -69,7 +76,7 @@ router.get('/auth/instagram', (req, res) => {
 
       await pool.query(
         'INSERT INTO instagram_accounts (user_id, account_id, access_token, token_expires_at) VALUES ($1, $2, $3, $4)',
-        [currentUserId, userId, longLivedToken, expirationDate]
+        [state, userId, longLivedToken, expirationDate]
       );
 
 
