@@ -3,6 +3,7 @@ const {pool} = require("../dbmanager")
 const router = require("express").Router();
 const axios = require("axios");
 const authMiddleware = require("../middleware/auth");
+const crytpo = require("crypto");
 
 router.post("/email-signup",controller.email_signup);
 
@@ -21,6 +22,7 @@ router.get("/getuserinfo",authMiddleware,controller.userProfile)
 // In your Express routes
 router.get('/auth/instagram', (req, res) => {
   
+  const state = crypto.randomBytes(16).toString('hex');
     // Generate the Instagram OAuth URL
     const clientId = "2901287790027729"
     const redirectUri ="https://insta.fliqr.ai/auth/instagram/callback"
@@ -30,14 +32,14 @@ router.get('/auth/instagram', (req, res) => {
         'instagram_business_manage_comments',
         'instagram_business_content_publish'
       ].join(',');
-      const instagramAuthUrl = `https://www.instagram.com/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scope}`;
+      const instagramAuthUrl = `https://www.instagram.com/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scope}&state=${state}`;
     res.redirect(instagramAuthUrl);
   });
   
   router.get('/auth/instagram/callback', async (req, res) => {
-    const { code } = req.query;
+    const { code,state } = req.query;
 
-    console.log(code,"codeeddd");
+    console.log(code,"codeeddd",state);
 
     const tokenResponse = await axios.post('https://api.instagram.com/oauth/access_token', 
         new URLSearchParams({
@@ -71,10 +73,7 @@ router.get('/auth/instagram', (req, res) => {
       const expirationDate = new Date();
       expirationDate.setSeconds(expirationDate.getSeconds() + expiresIn);
 
-      // await pool.query(
-      //   'INSERT INTO instagram_accounts (user_id, account_id, access_token, token_expires_at) VALUES ($1, $2, $3, $4)',
-      //   [currentUserId, userId, longLivedToken, expirationDate]
-      // );
+     
 
 
     
@@ -82,6 +81,10 @@ router.get('/auth/instagram', (req, res) => {
       // Exchange code for access token
       // Save the Instagram account to the user's profile
       // Redirect back to the frontend
+      //  await pool.query(
+      //   'INSERT INTO instagram_accounts (user_id, account_id, access_token, token_expires_at) VALUES ($1, $2, $3, $4)',
+      //   [currentUserId, userId, longLivedToken, expirationDate]
+      // );
       res.redirect(`${process.env.FRONTEND_URL}/createAutomation`)
     } catch (error) {
       res.redirect(`${process.env.FRONTEND_URL}/instagram/error?message=${encodeURIComponent(error.message)}`);
