@@ -22,12 +22,13 @@ router.get("/deleteuser/:userId", controller.deleteUserById);
 router.get("/getuserinfo",authMiddleware,controller.userProfile)
 
 // In your Express routes
-router.get('/auth/instagram/', (req, res) => {
+router.get('/auth/instagram/',authMiddleware, (req, res) => {
   const currentUserId = req.params.id;
   const state = crypto.randomBytes(16).toString('hex');
+  const userId = req.user.userId;
 
    // Store user ID in cache with state as key
-  //  authCache.set(state, currentUserId);
+   authCache.set(state, userId.toString());
 
     // Generate the Instagram OAuth URL
     const clientId = "2901287790027729"
@@ -46,8 +47,8 @@ router.get('/auth/instagram/', (req, res) => {
     const { code,state } = req.query;
 
     console.log(code,"codeeddd",state);
-    // const userIdd = authCache.get(state);
-    // console.log(userIdd,"useridddddddd");
+    const userIdd = authCache.get(state);
+    console.log(userIdd,"useridddddddd");
 
     const tokenResponse = await axios.post('https://api.instagram.com/oauth/access_token', 
         new URLSearchParams({
