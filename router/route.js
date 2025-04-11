@@ -5,6 +5,7 @@ const axios = require("axios");
 const authMiddleware = require("../middleware/auth");
 const NodeCache = require('node-cache');
 const authCache = new NodeCache({ stdTTL: 600 });
+const crypto = require("crypto");
 
 router.post("/email-signup",controller.email_signup);
 
