@@ -55,20 +55,20 @@ router.get('/auth/instagram/:id', (req, res) => {
     console.log(code,"codeeddd");
   
 
-    const tempAuthId = req.session.tempAuthId;
+    // const tempAuthId = req.session.tempAuthId;
   
-    if (!tempAuthId) {
-      return res.status(400).json({ error: 'No authentication session found' });
-    }
+    // if (!tempAuthId) {
+    //   return res.status(400).json({ error: 'No authentication session found' });
+    // }
     
     // Retrieve user data from cache
-    const userData = authCache.get(tempAuthId);
+    // const userData = authCache.get(tempAuthId);
     
-    if (!userData) {
-      return res.status(400).json({ error: 'Authentication session expired' });
-    }
+    // if (!userData) {
+    //   return res.status(400).json({ error: 'Authentication session expired' });
+    // }
 
-    const loginuserId = userData.userId;
+    // const loginuserId = userData.userId;
 
 
     const tokenResponse = await axios.post('https://api.instagram.com/oauth/access_token', 
@@ -103,13 +103,13 @@ router.get('/auth/instagram/:id', (req, res) => {
       const expirationDate = new Date();
       expirationDate.setSeconds(expirationDate.getSeconds() + expiresIn);
 
-      await pool.query(
-        'INSERT INTO instagram_accounts (user_id, account_id, access_token, token_expires_at) VALUES ($1, $2, $3, $4)',
-        [loginuserId, userId, longLivedToken, expirationDate]
-      );
+      // await pool.query(
+      //   'INSERT INTO instagram_accounts (user_id, account_id, access_token, token_expires_at) VALUES ($1, $2, $3, $4)',
+      //   [loginuserId, userId, longLivedToken, expirationDate]
+      // );
 
-      authCache.del(tempAuthId);
-      delete req.session.tempAuthId;
+      // authCache.del(tempAuthId);
+      // delete req.session.tempAuthId;
 
 
     
