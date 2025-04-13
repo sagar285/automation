@@ -19,6 +19,11 @@ router.get("/auth/google", controller.google_auth);
 router.get("/deleteuser/:userId", controller.deleteUserById);
 
 router.get("/getuserinfo", authMiddleware, controller.userProfile);
+
+
+router.get("/getinstagram/:accountid", authMiddleware, controller.getAllInstagramPosts);
+
+
 router.get(
   "/instagram/accounts",
   authMiddleware,

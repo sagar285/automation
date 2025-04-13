@@ -1,5 +1,5 @@
 // controllers/automation.controller.js
-const { pool } = require('../utils/db-manager');
+const { pool } = require('../dbmanager');
 const { v4: uuidv4 } = require('uuid');
 
 // Get all automations for accounts that the user has access to

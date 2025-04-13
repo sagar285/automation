@@ -1,7 +1,7 @@
 // routes/automation.routes.js
 const express = require('express');
 const router = express.Router();
-const automationController = require('../controllers/automation.controller');
+const automationController = require('../controller/automation');
 const authMiddleware = require('../middleware/auth');
 
 // Apply auth middleware to all routes

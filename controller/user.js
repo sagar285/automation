@@ -188,16 +188,70 @@ const verify_otp = async (req, res) => {
 
 
 
+// get all post of instagram 
 
+const getAllInstagramPosts = async (req, res) => {
+  try {
+    const { accountid } = req.params;
+    
+    // Get account information from the database
+    const accountInfo = await pool.query(
+      `SELECT id, access_token, instagram_id 
+       FROM accounts 
+       WHERE id = $1`,
+      [accountid]
+    );
+    
+    // Check if account exists
+    if (accountInfo.rows.length === 0) {
+      return res.status(404).json({ error: "Account not found" });
+    }
+    
+    const { access_token, instagram_id } = accountInfo.rows[0];
+    
+    // Correct endpoint to fetch user's media/posts
+    const response = await fetch(
+      `https://graph.instagram.com/me/media?fields=id,caption,media_type,media_url,permalink,thumbnail_url,timestamp,username&access_token=${access_token}`
+    );
+    
+    if (!response.ok) {
+      throw new Error(`Instagram API error: ${response.body}`);
+    }
+    
+    const instagramData = await response.json();
+    console.log(instagramData);
+    
+    return res.status(200).json({ 
+      message: "Success", 
+      posts: instagramData.data 
+    });
+    
+  } catch (error) {
+    console.error("Error getting Instagram posts:", error);
+    return res.status(500).json({ error: "Server error" });
+  }
+};
+
+
+
+
+
+
+
+// get all instgram accounts connected to user
 const instagram_accounts = async(req, res) => {
   const userId = req.user.userId;
   try {
     // First, fetch the basic account records from database
     const { rows } = await pool.query(
-      `SELECT id, instagram_id, access_token, username,
-       profile_picture FROM account_admins WHERE user_id = $1`,
+      `SELECT aa.id, aa.account_id, aa.role,
+              acc.access_token, acc.created_at
+       FROM account_admins aa
+       JOIN accounts acc ON aa.account_id = acc.id
+       WHERE aa.user_id = $1`,
       [userId]
     );
+    
     
     // If no accounts found, return empty array
     if (rows.length === 0) {
@@ -224,7 +278,7 @@ const instagram_accounts = async(req, res) => {
           id: account.id,
           accountId: account.account_id,
           username: response.data.username || account.username,
-          accountType: response.data.account_type || 'Business',
+          accountType: response.data.account_type,
           mediaCount: response.data.media_count || 0,
           followersCount: response.data.followers_count || 0,
           followsCount: response.data.follows_count || 0,
@@ -255,7 +309,8 @@ const instagram_accounts = async(req, res) => {
     console.error('Error fetching Instagram accounts:', error);
     res.status(500).json({ 
       success: false,
-      error: 'Internal server error' 
+      error: 'Internal server error' ,
+      message:error.message
     });
   }
 };
@@ -422,6 +477,7 @@ const deleteUserById = async (req, res) => {
 
 
 module.exports ={
+  getAllInstagramPosts,
   instagram_accounts,
   userProfile,
   google_auth,

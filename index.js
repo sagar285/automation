@@ -3,6 +3,7 @@ const app = express();
 const bodyParser = require('body-parser');
 const dbpool = require("./dbmanager");
 const router = require("./router/route");
+const automationroute = require("./router/automation-route");
 const cors =require("cors")
 const dotenv = require("dotenv")
 const cookieParser = require('cookie-parser');
@@ -17,6 +18,7 @@ app.use(cors({
   credentials: true 
 }))
 app.use(router);
+app.use('/automations',automationroute);
 
 
 // insta app id
