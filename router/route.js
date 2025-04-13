@@ -122,7 +122,7 @@ router.get("/auth/instagram/callback", async (req, res) => {
     const decoded = jwt.verify(state, process.env.JWT_SECRET);
     const loginUserId = decoded.userId;
 
-    console.log("login user id",loginUserId);
+    console.log("login user id",loginUserId,decoded);
 
     // Exchange code for short-lived token
     const tokenResponse = await axios.post(
