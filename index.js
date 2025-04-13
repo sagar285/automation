@@ -66,7 +66,7 @@ app.get('/webhook', (req, res) => {
 
 // Webhook event handler
 app.post('/webhook', (req, res) => {
-  console.log('Webhook event received:',req.body,req.query[0],req.params,req.body.entry[0].changes);
+  console.log('Webhook event received:',req.body.entry[0].changes[0].value, req.body.entry[0].changes[0].value.from);
   // Process the webhook event here
   res.sendStatus(200);
 });
