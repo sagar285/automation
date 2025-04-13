@@ -30,6 +30,7 @@ router.get("/auth/instagram/", (req, res) => {
   const state = crypto.randomBytes(16).toString("hex");
 
   const token = req.cookies.auth_token;
+  console.log(token,"token");
  
   // Store user ID in cache with state as key
 
