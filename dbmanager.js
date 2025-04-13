@@ -63,6 +63,45 @@ async function createTableIfNotExists(tableName, columns) {
   }
 }
 
+
+
+
+/**
+ * Deletes a table if it exists
+ * @param {string} tableName - Name of the table to delete
+ * @returns {Promise<Object>} - Query result
+ */
+async function deleteTable(tableName) {
+  try {
+    // Validate input
+    if (!tableName) {
+      throw new Error('Table name is required');
+    }
+
+    // Check if table exists before attempting to delete
+    const exists = await tableExists(tableName);
+    
+    if (!exists) {
+      return { success: false, message: `Table ${tableName} does not exist` };
+    }
+
+    // Create SQL query with CASCADE to handle dependencies
+    const query = `DROP TABLE ${tableName} CASCADE`;
+    
+    // Execute query
+    const result = await pool.query(query);
+    console.log(`Table ${tableName} deleted successfully`);
+    return { success: true, message: `Table ${tableName} deleted successfully`, result };
+  } catch (error) {
+    console.error('Error deleting table:', error);
+    return { success: false, message: error.message };
+  }
+}
+
+
+
+
+
 /**
  * Adds a column to an existing table
  * @param {string} tableName - Name of the table
@@ -293,5 +332,6 @@ module.exports = {
   deleteColumn,
   modifyColumn,
   tableExists,
-  getTableColumns
+  getTableColumns,
+  deleteTable
 };

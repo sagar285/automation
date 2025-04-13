@@ -29,6 +29,20 @@ app.use(router);
 // supabse password
 // Postgres@123
 
+//   const ff =async() =>{
+
+  
+//  await dbpool.deleteTable("instagram_accounts")
+//  await dbpool.deleteTable("users")
+//   await dbpool.deleteTable("email_verification")
+//   await dbpool.deleteTable("user_sessions")
+//   }
+
+//   ff();
+
+
+
+
 
 // Verification endpoint
 app.get('/webhook', (req, res) => {

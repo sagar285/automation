@@ -7,6 +7,7 @@ const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID; // Your client ID
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET; // Your client secret
 const REDIRECT_URL = `${process.env.API_URL}/auth/google/callback`;
 const axios =require("axios");
+const {v4 : uuidV4} =require("uuid");
 // email signup
 const email_signup = async (req, res) => {
   const { email } = req.body;
@@ -85,7 +86,7 @@ const verify_otp = async (req, res) => {
     if (userResult.rows.length === 0) {
       // Create new user
       const newUserResult = await pool.query(
-        'INSERT INTO users (email, provider, is_verified, created_at) VALUES ($1, $2, $3, CURRENT_TIMESTAMP) RETURNING id',
+        'INSERT INTO users (email, auth_provider, is_active, created_at) VALUES ($1, $2, $3, CURRENT_TIMESTAMP) RETURNING id',
         [email, 'email', true]
       );
       userId = newUserResult.rows[0].id;
@@ -93,7 +94,7 @@ const verify_otp = async (req, res) => {
       // Update existing user
       userId = userResult.rows[0].id;
       await pool.query(
-        'UPDATE users SET is_verified = TRUE, last_login = CURRENT_TIMESTAMP WHERE id = $1',
+        'UPDATE users SET is_active = TRUE WHERE id = $1',
         [userId]
       );
     }
@@ -186,7 +187,8 @@ const instagram_accounts = async(req, res) => {
   try {
     // First, fetch the basic account records from database
     const { rows } = await pool.query(
-      'SELECT id, account_id, access_token, username, profile_picture FROM instagram_accounts WHERE user_id = $1',
+      `SELECT id, instagram_id, access_token, username,
+       profile_picture FROM accounts WHERE user_id = $1`,
       [userId]
     );
     
@@ -313,7 +315,9 @@ const google_callback = async (req, res) => {
     if (userResult.rows.length === 0) {
       // Create new user
       const newUserResult = await pool.query(
-        'INSERT INTO users (email, full_name, profile_picture, provider, provider_user_id, is_verified, created_at) VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP) RETURNING id',
+        `INSERT INTO users (email, full_name, profile_picture, 
+        provider, provider_user_id, is_verified, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP) RETURNING id`,
         [email, name, picture, 'google', googleId, true]
       );
       userId = newUserResult.rows[0].id;
@@ -321,7 +325,7 @@ const google_callback = async (req, res) => {
       // Update existing user if needed
       userId = userResult.rows[0].id;
       await pool.query(
-        'UPDATE users SET full_name = $1, profile_picture = $2, provider = $3, provider_user_id = $4, is_verified = TRUE, last_login = CURRENT_TIMESTAMP WHERE id = $5',
+        `UPDATE users SET full_name = $1, profile_picture = $2, provider = $3, provider_user_id = $4, is_verified = TRUE, last_login = CURRENT_TIMESTAMP WHERE id = $5`,
         [name, picture, 'google', googleId, userId]
       );
     }

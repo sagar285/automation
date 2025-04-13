@@ -19,7 +19,11 @@ router.get("/auth/google", controller.google_auth);
 router.get("/deleteuser/:userId", controller.deleteUserById);
 
 router.get("/getuserinfo", authMiddleware, controller.userProfile);
-router.get("/instagram/accounts", authMiddleware, controller.instagram_accounts);
+router.get(
+  "/instagram/accounts",
+  authMiddleware,
+  controller.instagram_accounts
+);
 
 // In your Express routes
 router.get("/auth/instagram/", (req, res) => {
@@ -44,65 +48,176 @@ router.get("/auth/instagram/", (req, res) => {
   res.redirect(instagramAuthUrl);
 });
 
+// router.get("/auth/instagram/callback", async (req, res) => {
+//   const { code, state } = req.query;
+
+//   console.log(state, "ooooooo");
+
+//   const decoded = jwt.verify(state, process.env.JWT_SECRET);
+//   console.log(decoded, "decorddddd");
+//   const loginuserId = decoded.userId;
+//   const tokenResponse = await axios.post(
+//     "https://api.instagram.com/oauth/access_token",
+//     new URLSearchParams({
+//       client_id: process.env.INSTAGRAM_APP_ID,
+//       client_secret: process.env.INSTAGRAM_APP_SECRET,
+//       grant_type: "authorization_code",
+//       redirect_uri: "https://insta.fliqr.ai/auth/instagram/callback",
+//       code: code,
+//     }),
+//     {
+//       headers: {
+//         "Content-Type": "application/x-www-form-urlencoded",
+//       },
+//     }
+//   );
+
+//   const shortLivedToken = tokenResponse.data.access_token;
+//   const userId = tokenResponse.data.user_id;
+
+//   const longLivedResponse = await axios.get(
+//     "https://graph.instagram.com/access_token",
+//     {
+//       params: {
+//         grant_type: "ig_exchange_token",
+//         client_secret: process.env.INSTAGRAM_APP_SECRET,
+//         access_token: shortLivedToken,
+//       },
+//     }
+//   );
+
+//   const longLivedToken = longLivedResponse.data.access_token;
+//   const expiresIn = longLivedResponse.data.expires_in;
+
+//   const expirationDate = new Date();
+//   expirationDate.setSeconds(expirationDate.getSeconds() + expiresIn);
+
+//   await pool.query(
+//     `INSERT INTO accounts
+//     (user_id, instagram_id, access_token, token_expires_at)
+//      VALUES ($1, $2, $3, $4)`,
+//     [loginuserId, userId, longLivedToken, expirationDate]
+//   );
+
+//   try {
+//     // Exchange code for access token
+//     // Save the Instagram account to the user's profile
+//     // Redirect back to the frontend
+
+//     res.redirect(`${process.env.FRONTEND_URL}/createAutomation`);
+//   } catch (error) {
+//     res.redirect(
+//       `${process.env.FRONTEND_URL}/instagram/error?message=${encodeURIComponent(
+//         error.message
+//       )}`
+//     );
+//   }
+// });
+
 router.get("/auth/instagram/callback", async (req, res) => {
-  const { code, state } = req.query;
-
-  console.log(state, "ooooooo");
-
-  const decoded = jwt.verify(state, process.env.JWT_SECRET);
-  console.log(decoded, "decorddddd");
-  const loginuserId = decoded.userId;
-  const tokenResponse = await axios.post(
-    "https://api.instagram.com/oauth/access_token",
-    new URLSearchParams({
-      client_id: process.env.INSTAGRAM_APP_ID,
-      client_secret: process.env.INSTAGRAM_APP_SECRET,
-      grant_type: "authorization_code",
-      redirect_uri: "https://insta.fliqr.ai/auth/instagram/callback",
-      code: code,
-    }),
-    {
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-    }
-  );
-
-  const shortLivedToken = tokenResponse.data.access_token;
-  const userId = tokenResponse.data.user_id;
-
-  const longLivedResponse = await axios.get(
-    "https://graph.instagram.com/access_token",
-    {
-      params: {
-        grant_type: "ig_exchange_token",
-        client_secret: process.env.INSTAGRAM_APP_SECRET,
-        access_token: shortLivedToken,
-      },
-    }
-  );
-
-  const longLivedToken = longLivedResponse.data.access_token;
-  const expiresIn = longLivedResponse.data.expires_in;
-
-  const expirationDate = new Date();
-  expirationDate.setSeconds(expirationDate.getSeconds() + expiresIn);
-
-  await pool.query(
-    "INSERT INTO instagram_accounts (user_id, account_id, access_token, token_expires_at) VALUES ($1, $2, $3, $4)",
-    [loginuserId, userId, longLivedToken, expirationDate]
-  );
-
   try {
-    // Exchange code for access token
-    // Save the Instagram account to the user's profile
-    // Redirect back to the frontend
+    const { code, state } = req.query;
 
+    // Decode state to get user ID
+    const decoded = jwt.verify(state, process.env.JWT_SECRET);
+    const loginUserId = decoded.userId;
+
+    // Exchange code for short-lived token
+    const tokenResponse = await axios.post(
+      "https://api.instagram.com/oauth/access_token",
+      new URLSearchParams({
+        client_id: process.env.INSTAGRAM_APP_ID,
+        client_secret: process.env.INSTAGRAM_APP_SECRET,
+        grant_type: "authorization_code",
+        redirect_uri: "https://insta.fliqr.ai/auth/instagram/callback",
+        code: code,
+      }),
+      {
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+      }
+    );
+
+    const shortLivedToken = tokenResponse.data.access_token;
+    const instagramId = tokenResponse.data.user_id;
+
+    // Exchange for long-lived token
+    const longLivedResponse = await axios.get(
+      "https://graph.instagram.com/access_token",
+      {
+        params: {
+          grant_type: "ig_exchange_token",
+          client_secret: process.env.INSTAGRAM_APP_SECRET,
+          access_token: shortLivedToken,
+        },
+      }
+    );
+
+    const longLivedToken = longLivedResponse.data.access_token;
+    const expiresIn = longLivedResponse.data.expires_in;
+
+    const expirationDate = new Date();
+    expirationDate.setSeconds(expirationDate.getSeconds() + expiresIn);
+    const tokenUpdatedAt = new Date();
+
+    // First, check if account already exists
+    const accountResult = await pool.query(
+      "SELECT id FROM accounts WHERE instagram_id = $1",
+      [instagramId]
+    );
+
+    let accountId;
+
+    if (accountResult.rows.length > 0) {
+      // Account exists, update it
+      accountId = accountResult.rows[0].id;
+
+      await pool.query(
+        `UPDATE accounts 
+         SET access_token = $1, 
+             token_expires_at = $2, 
+             token_updated_at = $3,
+             updated_at = NOW()
+         WHERE id = $4`,
+        [longLivedToken, expirationDate, tokenUpdatedAt, accountId]
+      );
+    } else {
+      // Account doesn't exist, insert it
+      const insertResult = await pool.query(
+        `INSERT INTO accounts 
+         (instagram_id, access_token, token_expires_at, token_updated_at)
+         VALUES ($1, $2, $3, $4)
+         RETURNING id`,
+        [instagramId, longLivedToken, expirationDate, tokenUpdatedAt]
+      );
+
+      accountId = insertResult.rows[0].id;
+    }
+
+    // Check if admin relationship already exists
+    const adminResult = await pool.query(
+      "SELECT id FROM account_admins WHERE user_id = $1 AND account_id = $2",
+      [loginUserId, accountId]
+    );
+
+    if (adminResult.rows.length === 0) {
+      // Insert into account_admins
+      await pool.query(
+        `INSERT INTO account_admins 
+         (user_id, account_id, role, added_at)
+         VALUES ($1, $2, $3, NOW())`,
+        [loginUserId, accountId, "admin"]
+      );
+    }
+
+    // Redirect to frontend
     res.redirect(`${process.env.FRONTEND_URL}/createAutomation`);
   } catch (error) {
+    console.error("Error in Instagram callback:", error);
     res.redirect(
       `${process.env.FRONTEND_URL}/instagram/error?message=${encodeURIComponent(
-        error.message
+        error.message || "An unknown error occurred"
       )}`
     );
   }
