@@ -94,7 +94,8 @@ const dbManager = require('../dbmanager');
     
     // Automations Table
     console.log('Creating automations table...');
-    const automationsResult = await dbManager.createTableIfNotExists('automations', [
+    const automationsResult = await dbManager.createTableIfNotExists('automations', 
+      [
       { name: 'id', type: 'UUID', constraints: 'PRIMARY KEY DEFAULT gen_random_uuid()' },
       { name: 'account_id', type: 'UUID', constraints: 'REFERENCES accounts(id) ON DELETE CASCADE' },
       { name: 'name', type: 'TEXT' },
@@ -130,7 +131,8 @@ const dbManager = require('../dbmanager');
       { name: 'is_active', type: 'BOOLEAN', constraints: 'DEFAULT TRUE' },
       { name: 'created_at', type: 'TIMESTAMP', constraints: 'DEFAULT NOW()' },
       { name: 'updated_at', type: 'TIMESTAMP', constraints: 'DEFAULT NOW()' }
-    ]);
+    ]
+  );
     console.log(automationsResult.message);
     
     // Create indexes for better performance

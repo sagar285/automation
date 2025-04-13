@@ -100,7 +100,7 @@ const createAutomation = async (req, res) => {
     
     // Prepare database fields from form data
     const isUniversal = postSelection.type === 'all';
-    const mediaId = !isUniversal && postSelection.postIds.length > 0 ? postSelection.postIds[0] : null;
+    const mediaId = !isUniversal && postSelection.postIds.length > 0 ? postSelection.postIds.join(',') : null;
     const triggerType = trigger.type.toUpperCase();
     const keywordTriggerType = trigger.type === 'specific' ? 'CONTAINS' : null;
     
