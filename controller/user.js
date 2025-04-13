@@ -167,6 +167,8 @@ const verify_otp = async (req, res) => {
     
     // Return user profile data
     const user = result.rows[0];
+
+    console.log(user);
     
     res.status(200).json({
       user: {
