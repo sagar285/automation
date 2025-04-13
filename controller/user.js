@@ -84,10 +84,13 @@ const verify_otp = async (req, res) => {
     
     let userId;
     if (userResult.rows.length === 0) {
+
+       // Generate UUID for new user
+       const newuserId = uuidV4();
       // Create new user
       const newUserResult = await pool.query(
-        'INSERT INTO users (email, auth_provider, is_active, created_at) VALUES ($1, $2, $3, CURRENT_TIMESTAMP) RETURNING id',
-        [email, 'email', true]
+        'INSERT INTO users (id,email, auth_provider, is_active, created_at) VALUES ($1, $2, $3,$4, CURRENT_TIMESTAMP) RETURNING id',
+        [newuserId,email, 'email', true]
       );
       userId = newUserResult.rows[0].id;
     } else {
@@ -146,10 +149,12 @@ const verify_otp = async (req, res) => {
   try {
     // Get user ID from the decoded token
     const userId = req.user.userId;
+
+    console.log(userId,"user profile");
     
     // Query the database for user profile
     const result = await pool.query(
-      `SELECT id,email,  full_name, profile_picture, is_verified, created_at 
+      `SELECT id,email,  name, profile_picture, is_active, created_at 
        FROM users 
        WHERE id = $1`,
       [userId]
@@ -188,7 +193,7 @@ const instagram_accounts = async(req, res) => {
     // First, fetch the basic account records from database
     const { rows } = await pool.query(
       `SELECT id, instagram_id, access_token, username,
-       profile_picture FROM accounts WHERE user_id = $1`,
+       profile_picture FROM account_admins WHERE user_id = $1`,
       [userId]
     );
     
@@ -313,20 +318,22 @@ const google_callback = async (req, res) => {
     
     let userId;
     if (userResult.rows.length === 0) {
+        // Generate UUID for new user
+        const newuserId = uuidV4();
       // Create new user
       const newUserResult = await pool.query(
-        `INSERT INTO users (email, full_name, profile_picture, 
-        provider, provider_user_id, is_verified, created_at)
+        `INSERT INTO users (id,email, name, profile_picture, 
+        auth_provider, is_active, created_at)
          VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP) RETURNING id`,
-        [email, name, picture, 'google', googleId, true]
+        [newuserId,email, name, picture, 'google',  true]
       );
       userId = newUserResult.rows[0].id;
     } else {
       // Update existing user if needed
       userId = userResult.rows[0].id;
       await pool.query(
-        `UPDATE users SET full_name = $1, profile_picture = $2, provider = $3, provider_user_id = $4, is_verified = TRUE, last_login = CURRENT_TIMESTAMP WHERE id = $5`,
-        [name, picture, 'google', googleId, userId]
+        `UPDATE users SET name = $1, profile_picture = $2, auth_provider = $3, is_active = TRUE WHERE id = $4`,
+        [name, picture, 'google', userId]
       );
     }
     
