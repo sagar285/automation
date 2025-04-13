@@ -23,11 +23,11 @@ export async function middleware(req: NextRequest) {
   
   try {
     // Verify token (replace 'your_jwt_secret' with your actual secret from env)
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_jwt_secret');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
     // Create a new request with the user information attached
     const requestHeaders = new Headers(req.headers);
-    requestHeaders.set('x-user-id', (decoded as any).userId);
+    requestHeaders.set('x-user-id', (decoded).userId);
     
     // Continue to the API route with the modified headers
     return NextResponse.next({

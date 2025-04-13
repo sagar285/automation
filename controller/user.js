@@ -106,7 +106,7 @@ const verify_otp = async (req, res) => {
    
     const token = jwt.sign(
       { userId, email },
-      process.env.JWT_SECRET || 'your-secret-key',
+      process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
     
@@ -342,7 +342,7 @@ const google_callback = async (req, res) => {
     // Generate JWT token
     const token = jwt.sign(
       { userId, email },
-      process.env.JWT_SECRET || 'your-secret-key',
+      process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
     res.cookie('auth_token', token, {

@@ -30,7 +30,7 @@ router.get("/auth/instagram/", (req, res) => {
   const state = crypto.randomBytes(16).toString("hex");
 
   const token = req.cookies.auth_token;
-
+ 
   // Store user ID in cache with state as key
 
   // Generate the Instagram OAuth URL
@@ -117,7 +117,8 @@ router.get("/auth/instagram/", (req, res) => {
 router.get("/auth/instagram/callback", async (req, res) => {
   try {
     const { code, state } = req.query;
-
+   console.log(state)
+   console.log(jwt.verify(state,process.env.JWT_SECRET))
     // Decode state to get user ID
     const decoded = jwt.verify(state, process.env.JWT_SECRET);
     const loginUserId = decoded.userId;
