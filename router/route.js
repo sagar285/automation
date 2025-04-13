@@ -118,7 +118,7 @@ router.get("/auth/instagram/callback", async (req, res) => {
   try {
     const { code, state } = req.query;
    console.log(state)
-   console.log(jwt.verify(state,process.env.JWT_SECRET))
+   console.log(state,process.env.JWT_SECRET)
     // Decode state to get user ID
     const decoded = jwt.verify(state, process.env.JWT_SECRET);
     const loginUserId = decoded.userId;
