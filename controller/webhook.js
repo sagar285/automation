@@ -44,22 +44,18 @@ const postwebhookHandler = async (req, res) => {
     );
 
     const mediaId = req.body.entry[0].changes[0].value.media.id;
-    const query =`
+    const query = `
     SELECT a.*
     FROM automations a
     WHERE a.media_id = mediaId
-    `
-    const {rows} = await pool.query(query,[mediaId]);
-    console.log(rows,"pppppp");
-
+    `;
+    const { rows } = await pool.query(query, [mediaId]);
+    console.log(rows, "pppppp");
 
     // Process the webhook event here
     res.sendStatus(200);
   } catch (error) {
-   
-
-    
-
+    console.log(error, "uuuuuuuuuuuu");
   }
 };
 
