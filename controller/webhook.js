@@ -56,7 +56,7 @@ const postwebhookHandler = async (req, res) => {
 
     if (rows.length > 0) {
       const automation = rows[0];
-      const keywords = automation.keywords.split(',');
+      const keywords = automation.keywords;
       const accessToken = automation.access_token;
 
       for (let word of keywords) {
