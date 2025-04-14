@@ -4,6 +4,7 @@ const bodyParser = require('body-parser');
 const dbpool = require("./dbmanager");
 const router = require("./router/route");
 const automationroute = require("./router/automation-route");
+const webhookrouter = require("./router/webhook");
 const cors =require("cors")
 const dotenv = require("dotenv")
 const cookieParser = require('cookie-parser');
@@ -18,6 +19,7 @@ app.use(cors({
   credentials: true 
 }))
 app.use(router);
+app.use(webhookrouter);
 app.use('/automations',automationroute);
 
 
