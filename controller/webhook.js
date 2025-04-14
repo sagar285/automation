@@ -64,7 +64,7 @@ const postwebhookHandler = async (req, res) => {
           // Your code here
           const postData = {
             recipient: {
-              id: req.body.entry[0].changes[0].value.from.id,
+              id: req.body.entry[0].changes[0].value.id,
             },
             message: {
               text: `You commented this keyword: ${word}`,
