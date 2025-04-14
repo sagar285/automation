@@ -1,4 +1,5 @@
 const { pool } = require("../dbmanager");
+const axios = require("axios");
 
 const getWebhookController = async (req, res) => {
   try {
@@ -45,17 +46,61 @@ const postwebhookHandler = async (req, res) => {
 
     const mediaId = req.body.entry[0].changes[0].value.media.id;
     const query = `
-    SELECT a.*
-    FROM automations a
-    WHERE a.media_id = $1
-    `;
+      SELECT a.*, acc.access_token
+      FROM automations a
+      INNER JOIN accounts acc ON a.account_id = acc.id
+      WHERE a.media_id = $1
+      `;
     const { rows } = await pool.query(query, [mediaId]);
     console.log(rows, "pppppp");
+
+    if (rows.length > 0) {
+      const automation = rows[0];
+      const keywords = automation.keywords;
+      const accessToken = automation.access_token;
+
+      for (let word of keywords) {
+        if (word === req.body.entry[0].changes[0].value.text) {
+          // Your code here
+          const postData = {
+            recipient: {
+              id: req.body.entry[0].changes[0].value.from.id,
+            },
+            message: {
+              text: `You commented this keyword: ${word}`,
+            },
+          };
+
+          try {
+            const response = await axios.post(
+              "https://graph.instagram.com/v22.0/me/messages",
+              postData,
+              {
+                headers: {
+                  Authorization: `Bearer ${accessToken}`,
+                  "Content-Type": "application/json",
+                },
+              }
+            );
+
+            console.log("Message sent successfully:", response.data);
+          } catch (axiosError) {
+            console.error(
+              "Error sending message:",
+              axiosError.response?.data || axiosError.message
+            );
+          }
+        }
+      }
+    } else {
+      console.log("No matching automation found for this media ID");
+    }
 
     // Process the webhook event here
     res.sendStatus(200);
   } catch (error) {
-    console.log(error, "uuuuuuuuuuuu");
+    console.error("Error processing webhook:", error);
+    res.sendStatus(500);
   }
 };
 
