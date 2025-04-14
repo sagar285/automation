@@ -47,7 +47,7 @@ const postwebhookHandler = async (req, res) => {
     const query = `
     SELECT a.*
     FROM automations a
-    WHERE a.media_id = mediaId
+    WHERE a.media_id = $1
     `;
     const { rows } = await pool.query(query, [mediaId]);
     console.log(rows, "pppppp");
