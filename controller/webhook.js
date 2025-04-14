@@ -40,6 +40,8 @@ const postwebhookHandler = async (req, res) => {
     console.log(
       "Webhook event received:",
       req.body,
+      req.body.entry,
+      req.body.entry.changes,
     );
 
     const mediaId = req.body.entry[0].changes[0].value.media.id;
