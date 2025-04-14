@@ -41,9 +41,10 @@ const postwebhookHandler = async (req, res) => {
       "Webhook event received:",
       req.body,
       req.body.entry,
-      req.body.entry[0].changes,
+      req.body.entry[0].messaging,
     );
 
+    if(req.body.entry[0].changes){
     const mediaId = req.body.entry[0].changes[0].value.media.id;
     const query = `
       SELECT a.*, acc.access_token
@@ -98,10 +99,13 @@ const postwebhookHandler = async (req, res) => {
 
     // Process the webhook event here
     res.sendStatus(200);
-  } catch (error) {
+  }
+}
+  catch (error) {
     console.error("Error processing webhook:", error);
     res.sendStatus(500);
   }
+  
 };
 
 module.exports = {
