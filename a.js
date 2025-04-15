@@ -1,75 +1,133 @@
-// Inside your router.get("/auth/instagram/callback", async (req, res) => { ... });
+const crypto = require('crypto');
+const axios = require('axios');
+const { Pool, types } = require('pg'); // Import Pool from pg
+const dotenv = require('dotenv');
 
-// ... (after getting longLivedToken, expiresIn, instagramId)
+// --- Database Configuration ---
+dotenv.config();
+types.setTypeParser(types.builtins.INT8, (val) => val);
+types.setTypeParser(types.builtins.NUMERIC, (val) => val);
+const pool = new Pool({ /* ... connection details ... */ });
+pool.connect() /* ... connection test ... */ ;
+// --- End Database Configuration ---
 
-const expirationDate = new Date();
-expirationDate.setSeconds(expirationDate.getSeconds() + expiresIn);
-const tokenUpdatedAt = new Date();
 
-// --- Fetch Username and Profile Picture (Recommended) ---
-let username = null;
-let profilePicture = null;
-try {
-    const userInfoResponse = await axios.get(
-        `https://graph.instagram.com/v22.0/${instagramId}`, // Use correct API version
-        {
-            params: {
-                fields: 'id,username,profile_picture_url', // Add other fields if needed
-                access_token: longLivedToken
-            }
+// --- Middleware for Webhook Verification ---
+const verifyWebhookSignature = (req, res, next) => {
+    const signature = req.headers['x-hub-signature-256'];
+    if (!signature) {
+        console.warn('Webhook signature missing!');
+        return res.sendStatus(400); // Bad Request
+    }
+    // Ensure rawBody is available (requires express.raw() or similar in router setup)
+    if (!req.rawBody) {
+        console.error("Raw request body is required for signature verification.");
+        return res.sendStatus(500); // Server configuration error
+    }
+
+    try {
+        const expectedSignature = 'sha256=' + crypto
+            .createHmac('sha256', process.env.INSTAGRAM_APP_SECRET)
+            .update(req.rawBody, 'utf-8') // Use the raw body buffer/string
+            .digest('hex');
+
+        if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature))) {
+            console.warn('Invalid webhook signature.');
+            return res.sendStatus(403); // Forbidden - signature mismatch
         }
-    );
-    username = userInfoResponse.data.username;
-    profilePicture = userInfoResponse.data.profile_picture_url; // May not always be available depending on permissions/account type
-    console.log(`Fetched user info: Username=${username}`);
-} catch (userInfoError) {
-     console.error("Error fetching user info (username/profile pic):", userInfoError.response?.data || userInfoError.message);
-     // Proceed without username/profile pic if fetching fails
-}
-// --- End Fetch User Info ---
 
+        // Signature is valid, proceed to the next middleware (which should be express.json())
+        console.log("Webhook signature verified successfully.");
+        next();
 
-// First, check if account already exists using the IGSID
-const accountResult = await pool.query(
-    // Check against the column you primarily use for existence check (e.g., instagram_id)
-    "SELECT id FROM accounts WHERE instagram_id = $1",
-    [instagramId]
-);
+    } catch (error) {
+        console.error('Error during signature verification:', error);
+        // Send 200 OK even on internal error to prevent webhook disabling, but log it.
+        res.sendStatus(200);
+    }
+};
 
-let accountId;
+// --- GET Handler for Subscription ---
+const getWebhookController = async (req, res) => {
+    // (Implementation remains the same)
+    // ... uses INSTAGRAM_VERIFY_TOKEN ...
+    console.log("Received GET /webhook verification request:", req.query);
+    const mode = req.query["hub.mode"];
+    const token = req.query["hub.verify_token"];
+    const challenge = req.query["hub.challenge"];
+    const VERIFY_TOKEN = process.env.INSTAGRAM_VERIFY_TOKEN;
 
-if (accountResult.rows.length > 0) {
-    // Account exists, update it
-    accountId = accountResult.rows[0].id;
-    console.log(`Account exists (ID: ${accountId}). Updating token, username, and user_insta_business_id.`);
+    if (mode === "subscribe" && token === VERIFY_TOKEN) {
+        console.log("Webhook verification successful!");
+        res.status(200).send(challenge);
+    } else {
+        console.error("Webhook verification failed. Mode or Token mismatch.");
+        res.sendStatus(403);
+    }
+};
 
-    await pool.query(
-        `UPDATE accounts
-           SET access_token = $1,
-               token_expires_at = $2,
-               token_updated_at = $3,
-               user_insta_business_id = $4, -- <<< UPDATE the new column
-               username = $5,               -- <<< UPDATE username
-               profile_picture = $6,        -- <<< UPDATE profile picture
-               updated_at = NOW(),
-               is_active = TRUE             -- Ensure account is marked active
-         WHERE id = $7`, // Update based on internal DB ID
-        [longLivedToken, expirationDate, tokenUpdatedAt, instagramId, username, profilePicture, accountId]
-    );
+// --- POST Handler for Incoming Webhook Events ---
+const postwebhookHandler = async (req, res) => {
+    // Now we expect req.body to be a parsed object thanks to express.json() in the route
+    console.log("Webhook POST received (Parsed Body):", JSON.stringify(req.body, null, 2));
+    try {
+        // Check if body is an object and has the entry array
+        if (typeof req.body !== 'object' || req.body === null || !Array.isArray(req.body.entry)) {
+             console.warn("Webhook body missing 'entry' array or not an object after parsing.");
+             return res.sendStatus(200); // Acknowledge, but invalid format
+        }
 
-} else {
-    // Account doesn't exist, insert it
-    console.log(`Account does not exist for IGSID ${instagramId}. Inserting new record.`);
-    const insertResult = await pool.query(
-        `INSERT INTO accounts
-           (instagram_id, user_insta_business_id, access_token, token_expires_at, token_updated_at, username, profile_picture, is_active)
-         VALUES ($1, $1, $2, $3, $4, $5, $6, TRUE) -- <<< Use $1 (instagramId) for BOTH ID columns
-         RETURNING id`,
-        [instagramId, longLivedToken, expirationDate, tokenUpdatedAt, username, profilePicture]
-    );
-    accountId = insertResult.rows[0].id;
-    console.log(`New account inserted with ID: ${accountId}`);
-}
+        for (const entry of req.body.entry) {
+            const recipientIgId = entry.id; // IGSID of *your* page/account that received event
 
-// ... (rest of your callback logic: linking to user via account_admins, redirecting)
+            if (!recipientIgId) {
+                console.warn("Webhook entry missing recipient ID (entry.id). Skipping entry.");
+                continue;
+            }
 
+            // Process Comments if 'changes' field exists
+            if (entry.changes && Array.isArray(entry.changes)) {
+                for (const change of entry.changes) {
+                    if (change.field === 'comments' && change.value) {
+                        await processCommentEvent(change.value, recipientIgId);
+                    }
+                    // Add handlers for other 'changes' like mentions if needed
+                }
+            }
+
+            // Process Direct Messages if 'messaging' field exists
+            if (entry.messaging && Array.isArray(entry.messaging)) {
+                for (const messageEvent of entry.messaging) {
+                     if (messageEvent.message && !messageEvent.message.is_echo) {
+                        await processDirectMessageEvent(messageEvent, recipientIgId);
+                    }
+                     // Add handlers for postbacks, quick_reply taps, etc.
+                     else if (messageEvent.postback) {
+                         await processPostbackEvent(messageEvent, recipientIgId);
+                     }
+                }
+            }
+        } // End for entry loop
+        res.sendStatus(200); // Acknowledge receipt
+
+    } catch (error) {
+        console.error("Error processing webhook:", error);
+        res.sendStatus(200); // Still send 200 OK to prevent webhook disabling
+    }
+};
+
+// ===========================================
+// Event Processors & Utility Functions
+// (Implementations for processCommentEvent, processDirectMessageEvent, processPostbackEvent,
+// checkKeywords, checkFollowerStatus, handlePublicReply, sendDirectMessage,
+// logAction, countRecentLogs, hasSentLog, constructFollowPrompt, constructDmContent
+// remain the same as the previous complete example)
+// ===========================================
+
+// --- Export Handlers ---
+module.exports = {
+    getWebhookController,
+    postwebhookHandler,
+    verifyWebhookSignature
+    // Export other functions if needed elsewhere, otherwise keep them internal
+};

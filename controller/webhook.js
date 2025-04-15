@@ -23,10 +23,9 @@ const verifyWebhookSignature = (req, res, next) => {
         }
 
         // If signature is valid, attempt to parse JSON if needed
-        if (req.headers['content-type'] === 'application/json' && typeof req.body !== 'object') {
-             req.body = JSON.parse(req.rawBody.toString('utf-8'));
-        }
-        next(); // Signature verified, proceed
+      // Signature is valid, proceed to the next middleware (which should be express.json())
+      console.log("Webhook signature verified successfully.");
+      next();// Signature verified, proceed
 
     } catch (error) {
         console.error('Error during signature verification or JSON parsing:', error);
