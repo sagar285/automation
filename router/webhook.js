@@ -1,5 +1,5 @@
 const router = require("express").Router();
-const controller = require("../controller/webhook");
+const controller = require("../controller/mywebhook");
 const authMiddleware = require("../middleware/auth");
 
 router.get("/webhook",controller.getWebhookController);
