@@ -11,16 +11,13 @@ const rawBodySaver = (req, res, buf, encoding) => {
     }
   };
 
-router.get("/webhook",controller.verifyWebhookSignature,controller.getWebhookController);
+router.get("/webhook",controller.getWebhookController);
 
 
 router.post(
     "/webhook",
     // 1. Use express.raw() to make the raw body available BEFORE JSON parsing
     //    Only apply to application/json content type
-    express.raw({ type: 'application/json', verify: rawBodySaver }),
-    // 2. Verify the signature using the raw body and App Secret
-    controller.verifyWebhookSignature,
     // 3. If signature is valid, process the event (body should be parsed now if needed)
     controller.postwebhookHandler
 );
