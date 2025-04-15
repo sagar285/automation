@@ -219,7 +219,7 @@ const getAllInstagramPosts = async (req, res) => {
     }
     
     const instagramData = await response.json();
-    console.log(instagramData);
+    console.log(instagramData,"oooooooooooooooooooooooooo");
     
     return res.status(200).json({ 
       message: "Success", 
@@ -272,6 +272,8 @@ const instagram_accounts = async(req, res) => {
             access_token: account.access_token
           }
         });
+
+        console.log(response);
         
         // Combine database data with Instagram API data
         return {

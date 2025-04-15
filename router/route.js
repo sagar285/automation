@@ -148,6 +148,7 @@ router.get("/auth/instagram/callback", async (req, res) => {
       }
     );
 
+     console.log(tokenResponse.data,"short access data");
     const shortLivedToken = tokenResponse.data.access_token;
     const instagramId = tokenResponse.data.user_id;
 
@@ -163,6 +164,8 @@ router.get("/auth/instagram/callback", async (req, res) => {
       }
     );
 
+
+    console.log(longLivedResponse.data,"long time access data");
     const longLivedToken = longLivedResponse.data.access_token;
     const expiresIn = longLivedResponse.data.expires_in;
 
