@@ -1,106 +1,75 @@
-// middleware.ts
-import { NextRequest, NextResponse } from 'next/server';
-import jwt from 'jsonwebtoken';
+// Inside your router.get("/auth/instagram/callback", async (req, res) => { ... });
 
-// This config ensures the middleware only runs on specific paths
-export const config = {
-  matcher: ['/api/profile/:path*']
-};
+// ... (after getting longLivedToken, expiresIn, instagramId)
 
-export async function middleware(req: NextRequest) {
-  // Get authorization header
-  const authHeader = req.headers.get('authorization');
-  
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return NextResponse.json(
-      { error: 'Unauthorized - Missing or invalid token format' },
-      { status: 401 }
+const expirationDate = new Date();
+expirationDate.setSeconds(expirationDate.getSeconds() + expiresIn);
+const tokenUpdatedAt = new Date();
+
+// --- Fetch Username and Profile Picture (Recommended) ---
+let username = null;
+let profilePicture = null;
+try {
+    const userInfoResponse = await axios.get(
+        `https://graph.instagram.com/v22.0/${instagramId}`, // Use correct API version
+        {
+            params: {
+                fields: 'id,username,profile_picture_url', // Add other fields if needed
+                access_token: longLivedToken
+            }
+        }
     );
-  }
+    username = userInfoResponse.data.username;
+    profilePicture = userInfoResponse.data.profile_picture_url; // May not always be available depending on permissions/account type
+    console.log(`Fetched user info: Username=${username}`);
+} catch (userInfoError) {
+     console.error("Error fetching user info (username/profile pic):", userInfoError.response?.data || userInfoError.message);
+     // Proceed without username/profile pic if fetching fails
+}
+// --- End Fetch User Info ---
 
-  // Extract token
-  const token = authHeader.split(' ')[1];
-  
-  try {
-    // Verify token (replace 'your_jwt_secret' with your actual secret from env)
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    
-    // Create a new request with the user information attached
-    const requestHeaders = new Headers(req.headers);
-    requestHeaders.set('x-user-id', (decoded).userId);
-    
-    // Continue to the API route with the modified headers
-    return NextResponse.next({
-      request: {
-        headers: requestHeaders,
-      },
-    });
-  } catch (error) {
-    return NextResponse.json(
-      { error: 'Unauthorized - Invalid token' },
-      { status: 401 }
+
+// First, check if account already exists using the IGSID
+const accountResult = await pool.query(
+    // Check against the column you primarily use for existence check (e.g., instagram_id)
+    "SELECT id FROM accounts WHERE instagram_id = $1",
+    [instagramId]
+);
+
+let accountId;
+
+if (accountResult.rows.length > 0) {
+    // Account exists, update it
+    accountId = accountResult.rows[0].id;
+    console.log(`Account exists (ID: ${accountId}). Updating token, username, and user_insta_business_id.`);
+
+    await pool.query(
+        `UPDATE accounts
+           SET access_token = $1,
+               token_expires_at = $2,
+               token_updated_at = $3,
+               user_insta_business_id = $4, -- <<< UPDATE the new column
+               username = $5,               -- <<< UPDATE username
+               profile_picture = $6,        -- <<< UPDATE profile picture
+               updated_at = NOW(),
+               is_active = TRUE             -- Ensure account is marked active
+         WHERE id = $7`, // Update based on internal DB ID
+        [longLivedToken, expirationDate, tokenUpdatedAt, instagramId, username, profilePicture, accountId]
     );
-  }
+
+} else {
+    // Account doesn't exist, insert it
+    console.log(`Account does not exist for IGSID ${instagramId}. Inserting new record.`);
+    const insertResult = await pool.query(
+        `INSERT INTO accounts
+           (instagram_id, user_insta_business_id, access_token, token_expires_at, token_updated_at, username, profile_picture, is_active)
+         VALUES ($1, $1, $2, $3, $4, $5, $6, TRUE) -- <<< Use $1 (instagramId) for BOTH ID columns
+         RETURNING id`,
+        [instagramId, longLivedToken, expirationDate, tokenUpdatedAt, username, profilePicture]
+    );
+    accountId = insertResult.rows[0].id;
+    console.log(`New account inserted with ID: ${accountId}`);
 }
 
-// ---------------------------------------------------------
-// app/api/profile/route.ts
-import { NextRequest, NextResponse } from 'next/server';
-import { Pool } from 'pg';
+// ... (rest of your callback logic: linking to user via account_admins, redirecting)
 
-// Initialize PostgreSQL connection pool
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  // Additional config options if needed
-});
-
-export async function GET(req: NextRequest) {
-  try {
-    // Get the user ID from the header set by middleware
-    const userId = req.headers.get('x-user-id');
-    
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'User ID not found' },
-        { status: 400 }
-      );
-    }
-
-    // Query the database for user profile
-    const result = await pool.query(
-      `SELECT id, name, email, bio, avatar_url, created_at 
-       FROM users 
-       WHERE id = $1`,
-      [userId]
-    );
-
-    // Check if user exists
-    if (result.rows.length === 0) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      );
-    }
-
-    // Return user profile data
-    const user = result.rows[0];
-    
-    return NextResponse.json({
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        bio: user.bio,
-        avatarUrl: user.avatar_url,
-        createdAt: user.created_at
-      }
-    }, { status: 200 });
-    
-  } catch (error) {
-    console.error('Error fetching user profile:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
-  }
-}

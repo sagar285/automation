@@ -109,6 +109,31 @@ router.get("/auth/instagram/callback", async (req, res) => {
     expirationDate.setSeconds(expirationDate.getSeconds() + expiresIn);
     const tokenUpdatedAt = new Date();
 
+    let username = null;
+    let user_insta_business_id=null;
+
+    try {
+      const userInfoResponse = await axios.get(
+          `https://graph.instagram.com/me`, // Use correct API version
+          {
+              params: {
+                  fields: 'id,user_id,username', // Add other fields if needed
+                  access_token: longLivedToken
+              }
+          }
+      );
+      username = userInfoResponse.data.username;
+      user_insta_business_id = userInfoResponse.data.user_id
+
+     // May not always be available depending on permissions/account type
+      console.log(`Fetched user info: Username=${username}`);
+  } catch (userInfoError) {
+       console.error("Error fetching user info (username/profile pic):", userInfoError.response?.data || userInfoError.message);
+       // Proceed without username/profile pic if fetching fails
+  }
+
+
+
     // First, check if account already exists
     const accountResult = await pool.query(
       "SELECT id FROM accounts WHERE instagram_id = $1",
@@ -126,18 +151,19 @@ router.get("/auth/instagram/callback", async (req, res) => {
          SET access_token = $1, 
              token_expires_at = $2, 
              token_updated_at = $3,
+             user_insta_business_id = $4,
              updated_at = NOW()
-         WHERE id = $4`,
-        [longLivedToken, expirationDate, tokenUpdatedAt, accountId]
+         WHERE id = $5`,
+        [longLivedToken, expirationDate, tokenUpdatedAt,user_insta_business_id, accountId]
       );
     } else {
       // Account doesn't exist, insert it
       const insertResult = await pool.query(
         `INSERT INTO accounts 
-         (instagram_id, access_token, token_expires_at, token_updated_at)
-         VALUES ($1, $2, $3, $4)
+         (instagram_id, access_token, token_expires_at, token_updated_at,user_insta_business_id)
+         VALUES ($1, $2, $3, $4,$5)
          RETURNING id`,
-        [instagramId, longLivedToken, expirationDate, tokenUpdatedAt]
+        [instagramId, longLivedToken, expirationDate, tokenUpdatedAt,user_insta_business_id]
       );
 
       accountId = insertResult.rows[0].id;

@@ -22,41 +22,31 @@ app.use(router);
 app.use(webhookrouter);
 app.use('/automations',automationroute);
 
+// async function setupDatabaseExtensions() {
+//     console.log('Adding user_insta_business_id column to accounts table...');
+//     const result = await dbpool.addColumn(
+//         'accounts',                 // Table name
+//         'user_insta_business_id',   // New column name
+//         'TEXT',                     // Data type
+//         'UNIQUE'                    // Constraint
+//     );
 
-// insta app id
-// 2901287790027729
+//     if (result.success) {
+//         console.log(result.message);
+//     } else {
+//         // It might fail if the column already exists, which is okay if expected
+//         if (result.message.includes('already exists')) {
+//              console.log('Column user_insta_business_id already exists.');
+//         } else {
+//              console.error('Failed to add column:', result.message);
+//         }
+//     }
+//      // Close the pool if this is a standalone script
+//      // await dbManager.pool.end();
+// }
 
-// insta app secret
-// 27e047e52de1d98e09e2912002b9667a
-
-
-// supabse password
-// Postgres@123
-
-//   const ff =async() =>{
-
-  
-//  await dbpool.deleteTable("instagram_accounts")
-//  await dbpool.deleteTable("users")
-//   await dbpool.deleteTable("email_verification")
-//   await dbpool.deleteTable("user_sessions")
-//   }
-
-//   ff();
-
-
-
-app.get("/ngrok",(req,res)=>{
-  res.send("Ngrok is up and running")
-})
+// setupDatabaseExtensions();
 
 
-
-app.get("/instagram",(req,res)=>{
-    console.log(req.params,req.query,"console from ints")
-})
-app.get("/instagram",(req,res)=>{
-    console.log(req.params,req.query,"console from ints")
-})
 
 app.listen(5000, () => console.log('Server is running'));
