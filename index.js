@@ -11,15 +11,16 @@ const cookieParser = require('cookie-parser');
 
 dotenv.config({})
 
-app.use(express.json());
-app.use(cookieParser());
+app.use(webhookrouter);
 app.use(cors({
   origin: 'http://localhost:3000', // Your frontend URL
   // origin: 'https://fliqrai.vercel.app', // Your frontend URL
   credentials: true 
 }))
+app.use(cookieParser());
+
+app.use(express.json());
 app.use(router);
-app.use(webhookrouter);
 app.use('/automations',automationroute);
 
 // async function setupDatabaseExtensions() {
