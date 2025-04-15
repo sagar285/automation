@@ -5,7 +5,7 @@ const authMiddleware = require("../middleware/auth");
 router.get("/webhook",controller.getWebhookController);
 
 
-router.post("/webhook",authMiddleware,controller.postwebhookHandler);
+router.post("/webhook",controller.postwebhookHandler);
 
 
 module.exports =router;
