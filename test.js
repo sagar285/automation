@@ -1,348 +1,3 @@
-const { pool } = require("../dbmanager");
-const axios = require("axios");
-
-const getWebhookController = async (req, res) => {
-  try {
-    console.log(req.body, "pppp", req.query, req.params);
-    const mode = req.query["hub.mode"];
-    const token = req.query["hub.verify_token"];
-    const challenge = req.query["hub.challenge"];
-
-    // Your verification token (set this in Facebook Developer Console)
-    const VERIFY_TOKEN =
-      "IGAApOtLQdo9FBZAE5hVWRrQTEzYUN6WFhNQmtseVVXdDRGS29iUFlxS1N2dGdMLU5XMDlqMk81MDl1S2dMT3M1NVljRXpJU3VxZAmdnRmxJLXFuYjVna0V4UzVfSWdPb3c1Y2ZAyTE9QdS1scVhxOUM2QUkwMVFGaE1ldTBQc1o2QQZDZD";
-
-    if (mode === "subscribe" && token === VERIFY_TOKEN) {
-      res.status(200).send(challenge);
-    } else {
-      console.error("Verification failed");
-      res.status(200).send({ message: "get request succesfully available" });
-    }
-  } catch (error) {
-    console.log(error, "error in get webhook controller");
-  }
-};
-
-// const postwebhookHandler = async (req, res) => {
-//   try {
-//     console.log(
-//       "Webhook event received:",
-//       req.body,
-//       req.body.entry,
-//       req.body.entry[0].messaging,
-//     );
-
-//     if(req.body.entry[0].changes){
-//     const mediaId = req.body.entry[0].changes[0].value.media.id;
-//     const query = `
-//       SELECT a.*, acc.access_token
-//       FROM automations a
-//       INNER JOIN accounts acc ON a.account_id = acc.id
-//       WHERE a.media_id = $1
-//       `;
-//     const { rows } = await pool.query(query, [mediaId]);
-//     console.log(rows, "pppppp");
-
-//     if (rows.length > 0) {
-//       const automation = rows[0];
-//       const keywords = automation.keywords;
-//       const accessToken = automation.access_token;
-
-//       for (let word of keywords) {
-//         if (word === req.body.entry[0].changes[0].value.text) {
-//           // Your code here
-//           const postData = {
-//             recipient: {
-//                 comment_id: req.body.entry[0].changes[0].value.id,
-//             },
-//             message: {
-//               text: `You commented this keyword: ${word}`,
-//             },
-//           };
-
-//           try {
-//             const response = await axios.post(
-//               "https://graph.instagram.com/v22.0/me/messages",
-//               postData,
-//               {
-//                 headers: {
-//                   Authorization: `Bearer ${accessToken}`,
-//                   "Content-Type": "application/json",
-//                 },
-//               }
-//             );
-
-//             console.log("Message sent successfully:", response.data);
-//           } catch (axiosError) {
-//             console.error(
-//               "Error sending message:",
-//               axiosError.response?.data || axiosError.message
-//             );
-//           }
-//         }
-//       }
-//     } else {
-//       console.log("No matching automation found for this media ID");
-//     }
-
-//     // Process the webhook event here
-//     res.sendStatus(200);
-//   }
-// }
-//   catch (error) {
-//     console.error("Error processing webhook:", error);
-//     res.sendStatus(500);
-//   }
-
-// };
-
-// const postwebhookHandler = async (req, res) => {
-//   console.log("Webhook event received:", JSON.stringify(req.body, null, 2));
-
-//   // --- SECURITY WARNING ---
-//   // This handler is MISSING webhook signature verification (X-Hub-Signature).
-//   // You MUST implement this before production to ensure requests are from Instagram.
-//   // See previous examples for 'verifyWebhookSignature' middleware.
-//   // --- END WARNING ---
-
-//   try {
-//     var accessToken;
-//     var entryId = req.body.entry[0].id
-//     const accountQuery = `
-//     SELECT id as account_db_id, access_token
-//     FROM accounts
-//     WHERE user_insta_business_id = $1 AND is_active = TRUE
-//     LIMIT 1`;
-//      const { rows } = await pool.query(accountQuery, [entryId]);
-//      if (rows.length === 0) {
-//       console.log(`No active account found for business ID ${recipientIgId}. Webhook ignored for this entry.`);
-//       // We still send 200 OK later, just don't process this entry further.
-//       // Skip to the next entry
-//   }
-//   accessToken =rows[0].access_token
-
-
-//     // Check if the event is for comments ('changes' field)
-//     if (req.body.entry && req.body.entry[0] && req.body.entry[0].changes) {
-//       for (const change of req.body.entry[0].changes) {
-//         if (change.field === "comments") {
-//           const commentData = change.value;
-//           const mediaId = commentData.media?.id;
-//           const commentId = commentData.id;
-//           const commentText = commentData.text?.toLowerCase() || ""; // Normalize text
-
-//           if (!mediaId || !commentId || !commentText) {
-//             console.log(
-//               "Incomplete comment data in change, skipping this change."
-//             );
-//             continue; // Move to the next change if essential data is missing
-//           }
-
-//           console.log(
-//             `Processing comment ${commentId} on media ${mediaId} with text: "${commentData.text}"`
-//           );
-
-//           // Query for automations matching ONLY this specific media_id
-//           // WARNING: This ignores account context and universal automations.
-//           const query = `
-//                         SELECT a.*, acc.access_token
-//                         FROM automations a
-//                         INNER JOIN accounts acc ON a.account_id = acc.id
-//                         WHERE a.media_id = $1 AND a.is_active = TRUE
-//                         LIMIT 1; -- Assuming only one specific automation per media ID
-//                     `;
-//           const { rows } = await pool.query(query, [mediaId]);
-
-//           if (rows.length > 0) {
-//             const automation = rows[0];
-//             const keywords = automation.keywords || []; // Default to empty array
-//             accessToken = automation.access_token;
-//             const dmMessageToSend =
-//               automation.dm_message || "Thanks for your comment!"; // Use stored message or default
-
-//             console.log(
-//               `Found automation ${automation.id} for media ${mediaId}. Checking keywords:`,
-//               keywords
-//             );
-
-//             let keywordMatched = false;
-//             for (const keyword of keywords) {
-//               // Using case-insensitive 'includes' check
-//               if (commentText.includes(keyword.toLowerCase())) {
-//                 console.log(`Keyword "${keyword}" matched in comment text.`);
-//                 keywordMatched = true;
-//                 break; // Stop checking once a keyword matches
-//               }
-//             }
-
-//             if (keywordMatched) {
-//               // Keyword matched, proceed to send DM and auto replies
-
-//               try {
-//                 const response = await axios.post(
-//                   `https://graph.instagram.com/v22.0/${commentId}/replies`, // Use /me context
-//                   { message: "bake samosa kaeo" },
-//                   {
-//                     headers: {
-//                       Authorization: `Bearer ${accessToken}`,
-//                       "Content-Type": "application/json",
-//                     },
-//                   }
-//                 );
-//               } catch (error) {
-//                 console.log(error, "error in quick replies");
-//               }
-
-//               const postData = {
-//                 recipient: {
-//                   comment_id: commentId, // Target the specific comment
-//                 },
-//                 message: {
-//                   text: dmMessageToSend, // Use the message from the automation record
-//                 },
-//               };
-
-//               console.log("Attempting to send DM:", JSON.stringify(postData));
-
-//               try {
-//                 const response = await axios.post(
-//                   "https://graph.instagram.com/v22.0/me/messages", // Use /me context
-//                   postData,
-//                   {
-//                     headers: {
-//                       Authorization: `Bearer ${accessToken}`,
-//                       "Content-Type": "application/json",
-//                     },
-//                   }
-//                 );
-//                 console.log("DM sent successfully:", response.data);
-//                 // OPTIONAL: Log this action to your automation_logs table if you implement it
-//                 // await logAction(automation.id, automation.account_id, commentData.from?.id, commentId, mediaId, 'dm_sent');
-//               } catch (axiosError) {
-//                 console.error(
-//                   "Error sending DM:",
-//                   axiosError.response?.data || axiosError.message
-//                 );
-//                 // Handle specific errors if needed (e.g., token expired, permissions)
-//               }
-//             } else {
-//               console.log("No keywords matched for this comment.");
-//             }
-//           } else {
-//             console.log(
-//               `No active automation found specifically for media ID: ${mediaId}`
-//             );
-//           }
-//         } // End if change.field === 'comments'
-//       } // End for loop changes
-//     } else {
-//       console.log(
-//         "Webhook received, but no 'changes' field found in entry[0]. Ignoring (Might be DM or other event)."
-//       );
-//       if (req.body.entry[0].messaging) {
-//         const senderId = req.body.entry[0].messaging[0].sender.id;
-//         try {
-//           const response = await axios.get(
-//             `https://graph.instagram.com/v21.0/${senderId}`,
-//             {
-//               params: {
-//                 fields:
-//                   "name,profile_pic,username,follower_count,is_business_follow_user,is_user_follow_business,is_verified_user",
-//                 access_token: accessToken,
-//               },
-//             }
-//           );
-
-//           console.log("User info retrieved successfully:", response.data);
-//           if (response.data.is_user_follow_business) {
-//             try {
-//               const postData = {
-//                 recipient: {
-//                   id: senderId, // Target the specific user
-//                 },
-//                 message: {
-//                   text: "hello i am jalebi samosa", // Use the message from the automation record
-//                 },
-//               };
-//               const response = await axios.post(
-//                 "https://graph.instagram.com/v22.0/me/messages", // Use /me context
-//                 postData,
-//                 {
-//                   headers: {
-//                     Authorization: `Bearer ${accessToken}`,
-//                     "Content-Type": "application/json",
-//                   },
-//                 }
-//               );
-//             } catch (error) {
-//               console.log(error, "error in sending messages replies");
-//             }
-//           } else {
-//             try {
-//               const postData = {
-//                 recipient: {
-//                   id: senderId, // Target the specific user
-//                 },
-//                 message: {
-//                   attachment: {
-//                     type: "template",
-//                     payload: {
-//                       template_type: "button",
-//                       text: "You're not following ur,once you follow then only i will send you the link!",
-//                       buttons: [
-//                         {
-//                           type: "web_url",
-//                           url: "https://www.google.com",
-//                           title: "googlelink",
-//                         },
-//                         {
-//                           type: "postback",
-//                            payload: "FOLLOWED_CONFIRMATION",
-//                           title: "Yes i followed",
-//                         },
-//                       ],
-//                     },
-//                   },
-//                 },
-//               };
-//               const response = await axios.post(
-//                 "https://graph.instagram.com/v22.0/me/messages", // Use /me context
-//                 postData,
-//                 {
-//                   headers: {
-//                     Authorization: `Bearer ${accessToken}`,
-//                     "Content-Type": "application/json",
-//                   },
-//                 }
-//               );
-//             } catch (error) {
-//               console.log(error, "error in sending messages replies");
-//             }
-//           }
-//         } catch (error) {
-//           console.error(
-//             "Error retrieving Instagram user info:",
-//             error.response?.data || error.message
-//           );
-//           throw error;
-//         }
-//       }
-
-//       // Add logic here later to handle 'messaging' events if needed
-//     }
-
-//     // Always acknowledge the webhook quickly
-//     res.sendStatus(200);
-//   } catch (error) {
-//     console.error("Error processing webhook:", error);
-//     res.sendStatus(500); // Internal Server Error
-//   }
-// };
-
-
-
-
-
 const crypto = require('crypto');
 const axios = require('axios');
 const { Pool, types } = require('pg'); // Import Pool from pg
@@ -362,6 +17,9 @@ const pool = new Pool({
 pool.connect().then(() => console.log('DB Connected')).catch(e => console.error("DB Connect Error:", e));
 // --- End Database Configuration ---
 
+// Assume verifyWebhookSignature and getWebhookController are defined elsewhere and exported correctly
+// const { verifyWebhookSignature, getWebhookController } = require('./webhookController'); // Example import
+
 const API_VERSION = process.env.IG_API_VERSION || "v22.0"; // Use environment variable
 
 // --- POST Handler ---
@@ -371,7 +29,7 @@ const postwebhookHandler = async (req, res) => {
     // Basic validation
     if (typeof req.body !== 'object' || req.body === null || !Array.isArray(req.body.entry)) {
         console.warn("Webhook body missing 'entry' array or not an object.");
-        return res.sendStatus(200);
+        return res.sendStatus(200); // Acknowledge, but invalid format
     }
 
     // Process entries one by one
@@ -382,10 +40,9 @@ const postwebhookHandler = async (req, res) => {
             continue;
         }
 
-        // 1. Find Account Info using user_insta_business_id (ID and Token ONLY)
+        // 1. Find Account Info using user_insta_business_id
         let accountInfo;
         try {
-            // Removed username fetch from query
             const accountQuery = `
                 SELECT id as account_db_id, access_token
                 FROM accounts
@@ -396,13 +53,7 @@ const postwebhookHandler = async (req, res) => {
                 console.log(`No active account found for business ID ${recipientIgId}.`);
                 continue; // Skip this entry
             }
-            // accountInfo now only contains accountDbId and accessToken
-            accountInfo = {
-                accountDbId: rows[0].account_db_id,
-                accessToken: rows[0].access_token,
-                recipientIgId: recipientIgId // Still pass recipientIgId for context if needed
-            };
-
+            accountInfo = rows[0];
 
             if (!accountInfo.accessToken) {
                 console.error(`CRITICAL: Access token missing for account ${accountInfo.accountDbId}.`);
@@ -464,8 +115,7 @@ const postwebhookHandler = async (req, res) => {
 // ===========================================
 
 async function processCommentEventAsync(commentData, accountInfo) {
-    // accountInfo no longer contains recipientIgUsername
-    const { accountDbId, accessToken, recipientIgId } = accountInfo;
+    const { accountDbId, accessToken, recipientIgId, recipientIgUsername } = accountInfo;
     const mediaId = commentData.media?.id;
     const commentId = commentData.id;
     const commentText = commentData.text?.toLowerCase() || '';
@@ -506,8 +156,7 @@ async function processCommentEventAsync(commentData, accountInfo) {
         const isFollowing = await checkFollowerStatus(commenterIgId, recipientIgId, accessToken);
         if (!isFollowing) {
             proceedWithDm = false;
-            // Construct prompt *without* username/profile link button
-            const followPromptMessage = constructFollowPrompt(automation, commenterIgId, commentId);
+            const followPromptMessage = constructFollowPrompt(automation, commenterIgId, commentId, recipientIgUsername);
             if (!(await hasSentLog(accountDbId, commenterIgId, commentId, 'follow_check_dm'))) {
                 const sent = await sendDirectMessage(commentId, followPromptMessage, accessToken);
                 if (sent) await logAction(automation.id, accountDbId, commenterIgId, commentId, mediaId, 'follow_check_dm');
@@ -526,8 +175,7 @@ async function processCommentEventAsync(commentData, accountInfo) {
 }
 
 async function processDirectMessageEventAsync(messageEvent, accountInfo) {
-    // accountInfo no longer contains recipientIgUsername
-    const { accountDbId, accessToken, recipientIgId } = accountInfo;
+    const { accountDbId, accessToken, recipientIgId, recipientIgUsername } = accountInfo;
     const senderIgId = messageEvent.sender?.id;
     const messageText = messageEvent.message?.text?.toLowerCase() || '';
     const messageId = messageEvent.message?.mid;
@@ -559,8 +207,7 @@ async function processDirectMessageEventAsync(messageEvent, accountInfo) {
         const isFollowing = await checkFollowerStatus(senderIgId, recipientIgId, accessToken);
         if (!isFollowing) {
             proceedWithReply = false;
-            // Construct prompt *without* username/profile link button
-            const followPromptMessage = constructFollowPrompt(automation, senderIgId, messageId);
+            const followPromptMessage = constructFollowPrompt(automation, senderIgId, messageId, recipientIgUsername);
             if (!(await hasSentLog(accountDbId, senderIgId, messageId, 'follow_check_dm'))) {
                 const sent = await sendDirectMessage(senderIgId, followPromptMessage, accessToken, true);
                 if (sent) await logAction(automation.id, accountDbId, senderIgId, messageId, null, 'follow_check_dm');
@@ -579,7 +226,6 @@ async function processDirectMessageEventAsync(messageEvent, accountInfo) {
 }
 
 async function processPostbackEventAsync(postbackEvent, accountInfo) {
-     // accountInfo no longer contains recipientIgUsername
      const { accountDbId, accessToken, recipientIgId } = accountInfo;
      const senderIgId = postbackEvent.sender?.id;
      const payload = postbackEvent.postback?.payload;
@@ -629,7 +275,7 @@ async function findAutomationForSource(accountDbId, sourceId) {
 
 
 // ===========================================
-// Utility Functions (No Username needed)
+// Utility Functions (Using graph.instagram.com where applicable)
 // ===========================================
 
 function checkKeywords(text, keywords, triggerType = 'contains_any') {
@@ -644,7 +290,9 @@ function checkKeywords(text, keywords, triggerType = 'contains_any') {
 }
 
 async function checkFollowerStatus(userIdToCheck, businessAccountIgId, accessToken) {
-    // Using graph.instagram.com as requested. Test this endpoint for friendship_status.
+    // Using graph.instagram.com as requested, although graph.facebook.com is standard for Graph API. Test thoroughly.
+    // Note: Friendship status might not be available via graph.instagram.com.
+    // If this fails, you may need to revert this specific call to graph.facebook.com
     const url = `https://graph.instagram.com/${API_VERSION}/${userIdToCheck}`;
     console.log(`Checking follower status via ${url}: Does ${userIdToCheck} follow ${businessAccountIgId}?`);
     try {
@@ -657,17 +305,20 @@ async function checkFollowerStatus(userIdToCheck, businessAccountIgId, accessTok
         return false;
     } catch (error) {
         console.error(`Error checking follower status for ${userIdToCheck} using ${url}:`, error.response?.data ? JSON.stringify(error.response.data) : error.message);
+        // If error indicates endpoint/field isn't available on graph.instagram.com, consider graph.facebook.com
+        if (error.response?.data?.error?.message.includes("requires pages_read_engagement")) {
+             console.warn("Friendship status check might require graph.facebook.com endpoint or different permissions.");
+        }
         return false;
     }
 }
 
 async function handlePublicReply(automation, accountInfo, commentId, commenterIgId) {
-    // Uses original schema field: auto_public_reply
-    if (!automation.auto_public_reply) return;
+    if (!automation.auto_public_reply) return; // Use original field name
 
-    const { accountDbId, accessToken } = accountInfo; // No username needed here
+    const { accountDbId, accessToken } = accountInfo;
     const replyCount = await countRecentLogs(accountDbId, commenterIgId, commentId, 'public_reply');
-    const limit = automation.auto_reply_limit > 0 ? automation.auto_reply_limit : 1; // Original field
+    const limit = automation.auto_reply_limit > 0 ? automation.auto_reply_limit : 1;
 
     if (replyCount >= limit) {
         console.log(`Public reply limit (${limit}) reached for comment ${commentId}.`);
@@ -675,7 +326,7 @@ async function handlePublicReply(automation, accountInfo, commentId, commenterIg
     }
 
     let replyText = "Thanks!";
-    if (automation.auto_reply_messages && automation.auto_reply_messages.length > 0) { // Original field
+    if (automation.auto_reply_messages && automation.auto_reply_messages.length > 0) {
         const randomIndex = Math.floor(Math.random() * automation.auto_reply_messages.length);
         replyText = automation.auto_reply_messages[randomIndex];
     }
@@ -686,18 +337,18 @@ async function handlePublicReply(automation, accountInfo, commentId, commenterIg
     try {
         const response = await axios.post(url, { message: replyText }, { headers: { Authorization: `Bearer ${accessToken}` } });
         console.log("Public reply sent:", response.data?.id);
-        await logAction(automation.id, accountDbId, commenterIgId, commentId, automation.media_id, 'public_reply'); // Original field
+        await logAction(automation.id, accountDbId, commenterIgId, commentId, automation.media_id, 'public_reply');
     } catch (error) {
         console.error("Error sending public reply:", error.response?.data ? JSON.stringify(error.response.data) : error.message);
     }
 }
 
 async function sendDirectMessage(recipientContext, messagePayload, accessToken, isUserId = false) {
-    // (Implementation remains the same - doesn't need username)
     const postData = { recipient: {}, message: messagePayload.message };
     if (isUserId) { postData.recipient = { id: recipientContext }; }
     else { postData.recipient = { comment_id: recipientContext }; }
 
+    // Using graph.instagram.com as requested
     const url = `https://graph.instagram.com/${API_VERSION}/me/messages`;
     console.log(`Sending DM via ${url} (isUserId: ${isUserId}):`, JSON.stringify(postData));
     try {
@@ -736,16 +387,14 @@ async function hasSentLog(accountDbId, recipientIgId, sourceIgId, actionType) {
     } catch (error) { console.error("Error checking logs:", error); return false; }
 }
 
-// Message construction uses ORIGINAL schema fields - REMOVED username parameter and URL button
+// Message construction uses ORIGINAL schema fields
 function constructFollowPrompt(automation, userIgId, sourceId) {
-    // Use original schema fields 'ask_follow_text', 'ask_follow_button'
     const text = automation.ask_follow_text || "Please follow us to continue!";
-    const followButtonText = automation.ask_follow_button || "I've Followed"; // Label for postback button
-
-    // Construct the postback payload dynamically
+    const followButtonText = automation.ask_follow_button || "I've Followed";
+    const profileUrl =  'https://instagram.com';
     const postbackPayload = `ACTION=RECHECK_FOLLOW&USER=${userIgId}&SOURCE=${sourceId}`;
 
-    // Button Template structure - ONLY includes the postback button now
+    // Button Template structure
     return {
         message: {
             attachment: {
@@ -754,12 +403,8 @@ function constructFollowPrompt(automation, userIgId, sourceId) {
                     template_type: "button",
                     text: text,
                     buttons: [
-                        // Removed the "Follow Our Profile" web_url button
-                        {
-                            type: "postback",
-                            title: followButtonText, // Use configured text
-                            payload: postbackPayload
-                        }
+                        { type: "web_url", url: profileUrl, title: "Follow Our Profile" },
+                        { type: "postback", title: followButtonText, payload: postbackPayload }
                     ]
                 }
             }
@@ -769,7 +414,6 @@ function constructFollowPrompt(automation, userIgId, sourceId) {
 
 // Message construction uses ORIGINAL schema fields
 function constructDmContent(automation) {
-    // (Implementation remains the same as previous version - doesn't use username)
     try {
         if (automation.generic_template) {
             const payload = typeof automation.generic_template === 'string' ? JSON.parse(automation.generic_template) : automation.generic_template;
@@ -789,10 +433,7 @@ function constructDmContent(automation) {
     }
 }
 
+// --- Export Handlers ---
+// Ensure these are exported if this code is in a separate controller file
+// module.exports = { postwebhookHandler }; // Add getWebhookController, verifyWebhookSignature if needed
 
-
-
-module.exports = {
-  getWebhookController,
-  postwebhookHandler,
-};
