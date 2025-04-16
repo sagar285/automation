@@ -107,6 +107,21 @@ const postwebhookHandler = async (req, res) => {
 
   try {
     var accessToken;
+    var entryId = req.body.entry[0].id
+    const accountQuery = `
+    SELECT id as account_db_id, access_token
+    FROM accounts
+    WHERE user_insta_business_id = $1 AND is_active = TRUE
+    LIMIT 1`;
+     const { rows } = await pool.query(accountQuery, [entryId]);
+     if (rows.length === 0) {
+      console.log(`No active account found for business ID ${recipientIgId}. Webhook ignored for this entry.`);
+      // We still send 200 OK later, just don't process this entry further.
+      // Skip to the next entry
+  }
+  accessToken =rows[0].access_token
+
+
     // Check if the event is for comments ('changes' field)
     if (req.body.entry && req.body.entry[0] && req.body.entry[0].changes) {
       for (const change of req.body.entry[0].changes) {
