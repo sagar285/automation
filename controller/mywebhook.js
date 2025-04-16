@@ -261,7 +261,7 @@ const postwebhookHandler = async (req, res) => {
                   id: senderId, // Target the specific user
                 },
                 message: {
-                  text: dmMessageToSend, // Use the message from the automation record
+                  text: "hello i am jalebi samosa", // Use the message from the automation record
                 },
               };
               const response = await axios.post(
