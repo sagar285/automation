@@ -121,7 +121,6 @@ const getWebhookController = async (req, res) => {
 //   }
 //   accessToken =rows[0].access_token
 
-
 //     // Check if the event is for comments ('changes' field)
 //     if (req.body.entry && req.body.entry[0] && req.body.entry[0].changes) {
 //       for (const change of req.body.entry[0].changes) {
@@ -343,85 +342,101 @@ const API_VERSION = process.env.IG_API_VERSION || "v22.0"; // Use environment va
 
 // --- POST Handler ---
 const postwebhookHandler = async (req, res) => {
-    console.log("Webhook POST received:", JSON.stringify(req.body, null, 2));
+  console.log("Webhook POST received:", JSON.stringify(req.body, null, 2));
 
-    // Basic validation
-    if (typeof req.body !== 'object' || req.body === null || !Array.isArray(req.body.entry)) {
-        console.warn("Webhook body missing 'entry' array or not an object.");
-        return res.sendStatus(200); // Acknowledge, but invalid format
-    }
+  // Basic validation
+  if (
+    typeof req.body !== "object" ||
+    req.body === null ||
+    !Array.isArray(req.body.entry)
+  ) {
+    console.warn("Webhook body missing 'entry' array or not an object.");
+    return res.sendStatus(200); // Acknowledge, but invalid format
+  }
 
-    // Send 200 OK immediately to ensure fast response
-    res.sendStatus(200);
-    console.log("Sent 200 OK response immediately. Processing async...");
+  // Send 200 OK immediately to ensure fast response
+  res.sendStatus(200);
+  console.log("Sent 200 OK response immediately. Processing async...");
 
-    // Process entries asynchronously
-    setTimeout(async () => {
+  // Process entries asynchronously
+  setTimeout(async () => {
+    try {
+      // Process entries one by one
+      for (const entry of req.body.entry) {
+        const recipientIgId = entry.id; // Your Account's IGSID
+        if (!recipientIgId) {
+          console.warn(
+            "Webhook entry missing recipient ID (entry.id). Skipping."
+          );
+          continue;
+        }
+
+        // 1. Find Account Info using user_insta_business_id
+        let accountInfo;
         try {
-            // Process entries one by one
-            for (const entry of req.body.entry) {
-                const recipientIgId = entry.id; // Your Account's IGSID
-                if (!recipientIgId) {
-                    console.warn("Webhook entry missing recipient ID (entry.id). Skipping.");
-                    continue;
-                }
-
-                // 1. Find Account Info using user_insta_business_id
-                let accountInfo;
-                try {
-                    const accountQuery = `
+          const accountQuery = `
                         SELECT id as account_db_id, access_token
                         FROM accounts
                         WHERE user_insta_business_id = $1 AND is_active = TRUE LIMIT 1`;
-                    const { rows } = await pool.query(accountQuery, [recipientIgId]);
+          const { rows } = await pool.query(accountQuery, [recipientIgId]);
 
-                    if (rows.length === 0) {
-                        console.log(`No active account found for business ID ${recipientIgId}.`);
-                        continue; // Skip this entry
-                    }
-                    accountInfo = {
-                        accountDbId: rows[0].account_db_id,
-                        accessToken: rows[0].access_token,
-                        recipientIgId: recipientIgId
-                    };
+          if (rows.length === 0) {
+            console.log(
+              `No active account found for business ID ${recipientIgId}.`
+            );
+            continue; // Skip this entry
+          }
+          accountInfo = {
+            accountDbId: rows[0].account_db_id,
+            accessToken: rows[0].access_token,
+            recipientIgId: recipientIgId,
+          };
 
-                    if (!accountInfo.accessToken) {
-                        console.error(`CRITICAL: Access token missing for account ${accountInfo.accountDbId}.`);
-                        continue; // Skip this entry
-                    }
+          if (!accountInfo.accessToken) {
+            console.error(
+              `CRITICAL: Access token missing for account ${accountInfo.accountDbId}.`
+            );
+            continue; // Skip this entry
+          }
 
-                    console.log(`ASYNC: Starting processing for account ${accountInfo.accountDbId}`);
-                    
-                    // Process Comments
-                    if (entry.changes && Array.isArray(entry.changes)) {
-                        for (const change of entry.changes) {
-                            if (change.field === 'comments' && change.value) {
-                                await processCommentEventAsync(change.value, accountInfo);
-                            }
-                        }
-                    }
-                    
-                    // Process DMs
-                    if (entry.messaging && Array.isArray(entry.messaging)) {
-                        for (const messageEvent of entry.messaging) {
-                            if (messageEvent.message && !messageEvent.message.is_echo) {
-                                await processDirectMessageEventAsync(messageEvent, accountInfo);
-                            }
-                            else if (messageEvent.postback) {
-                                await processPostbackEventAsync(messageEvent, accountInfo);
-                            }
-                        }
-                    }
-                    
-                    console.log(`ASYNC: Finished processing for account ${accountInfo.accountDbId}`);
-                } catch (dbError) {
-                    console.error(`Database error looking up account for ${recipientIgId}:`, dbError);
-                }
-            } // End for entry loop
-        } catch (asyncError) {
-            console.error("ASYNC Error in webhook processing:", asyncError);
+          console.log(
+            `ASYNC: Starting processing for account ${accountInfo.accountDbId}`
+          );
+
+          // Process Comments
+          if (entry.changes && Array.isArray(entry.changes)) {
+            for (const change of entry.changes) {
+              if (change.field === "comments" && change.value) {
+                await processCommentEventAsync(change.value, accountInfo);
+              }
+            }
+          }
+
+          // Process DMs
+          if (entry.messaging && Array.isArray(entry.messaging)) {
+            for (const messageEvent of entry.messaging) {
+              if (messageEvent.message && !messageEvent.message.is_echo) {
+                await processDirectMessageEventAsync(messageEvent, accountInfo);
+              } else if (messageEvent.postback) {
+                await processPostbackEventAsync(messageEvent, accountInfo);
+              }
+            }
+          }
+
+          console.log(
+            `ASYNC: Finished processing for account ${accountInfo.accountDbId}`
+          );
+        } catch (dbError) {
+          console.error(
+            `Database error looking up account for ${recipientIgId}:`,
+            dbError
+          );
         }
-    }, 0);
+      } // End for entry loop
+    } catch (asyncError) {
+      console.error("ASYNC Error in webhook processing:", asyncError);
+    }
+  }, 0);
 };
 
 // ===========================================
@@ -429,356 +444,612 @@ const postwebhookHandler = async (req, res) => {
 // ===========================================
 
 async function processCommentEventAsync(commentData, accountInfo) {
-    const { accountDbId, accessToken, recipientIgId } = accountInfo;
-    const mediaId = commentData.media?.id;
-    const commentId = commentData.id;
-    const commentText = commentData.text?.toLowerCase() || '';
-    const commenterIgId = commentData.from?.id;
+  const { accountDbId, accessToken, recipientIgId } = accountInfo;
+  const mediaId = commentData.media?.id;
+  const commentId = commentData.id;
+  const commentText = commentData.text?.toLowerCase() || "";
+  const commenterIgId = commentData.from?.id;
 
-    if (!mediaId || !commentId || !commentText || !commenterIgId) {
-        console.log("Incomplete comment data, skipping processing");
-        return;
-    }
+  if (!mediaId || !commentId || !commentText || !commenterIgId) {
+    console.log("Incomplete comment data, skipping processing");
+    return;
+  }
 
-    console.log(`ASYNC: Processing comment ${commentId} on media ${mediaId}`);
+  console.log(`ASYNC: Processing comment ${commentId} on media ${mediaId}`);
 
-    // Check if this comment has already been processed
-    if (await hasSentLog(accountDbId, commenterIgId, commentId, 'comment_processed')) {
-        console.log(`Comment ${commentId} already processed. Skipping.`);
-        return;
-    }
-    
-    // Mark comment as processed
-    await logAction(null, accountDbId, commenterIgId, commentId, mediaId, 'comment_processed');
+  // Check if this comment has already been processed
+  if (
+    await hasSentLog(accountDbId, commenterIgId, commentId, "comment_processed")
+  ) {
+    console.log(`Comment ${commentId} already processed. Skipping.`);
+    return;
+  }
 
-    // 1. Find Automation (Original Schema)
-    const query = `
+  // Mark comment as processed
+  await logAction(
+    null,
+    accountDbId,
+    commenterIgId,
+    commentId,
+    mediaId,
+    "comment_processed"
+  );
+
+  // 1. Find Automation (Original Schema)
+  const query = `
         SELECT * FROM automations
         WHERE account_id = $1 AND (media_id = $2 OR is_universal = TRUE) AND is_active = TRUE
         ORDER BY CASE WHEN media_id = $2 THEN 1 ELSE 2 END, created_at DESC LIMIT 1;`;
-    let automation;
-    try {
-        const { rows } = await pool.query(query, [accountDbId, mediaId]);
-        if (rows.length === 0) return;
-        automation = rows[0];
-        console.log(`ASYNC: Using automation ${automation.id} for comment ${commentId}.`);
-    } catch (dbError) { 
-        console.error(`ASYNC: DB error finding automation for comment ${commentId}:`, dbError); 
-        return; 
+  let automation;
+  try {
+    const { rows } = await pool.query(query, [accountDbId, mediaId]);
+    if (rows.length === 0) return;
+    automation = rows[0];
+    console.log(
+      `ASYNC: Using automation ${automation.id} for comment ${commentId}.`
+    );
+  } catch (dbError) {
+    console.error(
+      `ASYNC: DB error finding automation for comment ${commentId}:`,
+      dbError
+    );
+    return;
+  }
+
+  // 2. Check Keywords
+  const keywordMatch = checkKeywords(commentText, automation.keywords);
+
+  // 3. Handle Public Auto-Reply (only send one)
+  if (
+    automation.auto_public_reply &&
+    !(await hasSentLog(accountDbId, commenterIgId, commentId, "public_reply"))
+  ) {
+    await handlePublicReply(automation, accountInfo, commentId, commenterIgId);
+  }
+
+  // 4. Proceed with DM ONLY if keywords matched
+  if (!keywordMatch) return;
+  console.log(`ASYNC: Keywords matched for comment ${commentId}. Proceeding.`);
+
+  // 5. Check Follower Status (if required)
+  if (automation.ask_to_follow) {
+    const isFollowing = await checkFollowerStatus(
+      commenterIgId,
+      recipientIgId,
+      accessToken
+    );
+    if (!isFollowing) {
+      const followPromptMessage = constructFollowPrompt(
+        automation,
+        commenterIgId,
+        commentId
+      );
+      if (
+        !(await hasSentLog(
+          accountDbId,
+          commenterIgId,
+          commentId,
+          "follow_check_dm"
+        ))
+      ) {
+        const sent = await sendDirectMessage(
+          commentId,
+          followPromptMessage,
+          accessToken
+        );
+        if (sent)
+          await logAction(
+            automation.id,
+            accountDbId,
+            commenterIgId,
+            commentId,
+            mediaId,
+            "follow_check_dm"
+          );
+      }
+      return; // Don't send main DM yet
     }
+  }
 
-    // 2. Check Keywords
-    const keywordMatch = checkKeywords(commentText, automation.keywords);
-
-    // 3. Handle Public Auto-Reply (only send one)
-    if (automation.auto_public_reply && !(await hasSentLog(accountDbId, commenterIgId, commentId, 'public_reply'))) {
-        await handlePublicReply(automation, accountInfo, commentId, commenterIgId);
-    }
-
-    // 4. Proceed with DM ONLY if keywords matched
-    if (!keywordMatch) return;
-    console.log(`ASYNC: Keywords matched for comment ${commentId}. Proceeding.`);
-
-    // 5. Check Follower Status (if required)
-    if (automation.ask_to_follow) {
-        const isFollowing = await checkFollowerStatus(commenterIgId, recipientIgId, accessToken);
-        if (!isFollowing) {
-            const followPromptMessage = constructFollowPrompt(automation, commenterIgId, commentId);
-            if (!(await hasSentLog(accountDbId, commenterIgId, commentId, 'follow_check_dm'))) {
-                const sent = await sendDirectMessage(commentId, followPromptMessage, accessToken);
-                if (sent) await logAction(automation.id, accountDbId, commenterIgId, commentId, mediaId, 'follow_check_dm');
-            }
-            return; // Don't send main DM yet
-        }
-    }
-
-    // 6. Send Main DM (with YouTube link)
-    if (!(await hasSentLog(accountDbId, commenterIgId, commentId, 'youtube_link_sent'))) {
-        const youtubeMessage = {
-            message: {
-                text: "Thanks for your comment! Here's your YouTube link: https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-            }
-        };
-        const sent = await sendDirectMessage(commentId, youtubeMessage, accessToken);
-        if (sent) await logAction(automation.id, accountDbId, commenterIgId, commentId, mediaId, 'youtube_link_sent');
-    }
+  // 6. Send Main DM (with YouTube link)
+  if (
+    !(await hasSentLog(
+      accountDbId,
+      commenterIgId,
+      commentId,
+      "youtube_link_sent"
+    ))
+  ) {
+    const youtubeMessage = {
+      message: {
+        text: "Thanks for your comment! Here's your YouTube link: https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      },
+    };
+    const sent = await sendDirectMessage(
+      commentId,
+      youtubeMessage,
+      accessToken
+    );
+    if (sent)
+      await logAction(
+        automation.id,
+        accountDbId,
+        commenterIgId,
+        commentId,
+        mediaId,
+        "youtube_link_sent"
+      );
+  }
 }
 
 async function processDirectMessageEventAsync(messageEvent, accountInfo) {
-    const { accountDbId, accessToken, recipientIgId } = accountInfo;
-    const senderIgId = messageEvent.sender?.id;
-    const messageText = messageEvent.message?.text?.toLowerCase() || '';
-    const messageId = messageEvent.message?.mid;
+  const { accountDbId, accessToken, recipientIgId } = accountInfo;
+  const senderIgId = messageEvent.sender?.id;
+  const messageText = messageEvent.message?.text?.toLowerCase() || "";
+  const messageId = messageEvent.message?.mid;
 
-    if (!senderIgId || !messageId || !messageText || senderIgId === recipientIgId) {
-        console.log("Incomplete message data or self-message, skipping processing");
-        return;
-    }
+  if (
+    !senderIgId ||
+    !messageId ||
+    !messageText ||
+    senderIgId === recipientIgId
+  ) {
+    console.log("Incomplete message data or self-message, skipping processing");
+    return;
+  }
 
-    console.log(`ASYNC: Processing DM ${messageId} from ${senderIgId}`);
+  console.log(`ASYNC: Processing DM ${messageId} from ${senderIgId}`);
 
-    // Check if this message has already been processed
-    if (await hasSentLog(accountDbId, senderIgId, messageId, 'message_processed')) {
-        console.log(`Message ${messageId} already processed. Skipping.`);
-        return;
-    }
-    
-    // Mark message as processed
-    await logAction(null, accountDbId, senderIgId, messageId, null, 'message_processed');
+  // Check if this message has already been processed
+  if (
+    await hasSentLog(accountDbId, senderIgId, messageId, "message_processed")
+  ) {
+    console.log(`Message ${messageId} already processed. Skipping.`);
+    return;
+  }
 
-    // 1. Find Universal Automation (Original Schema)
-    const query = `
+  // Mark message as processed
+  await logAction(
+    null,
+    accountDbId,
+    senderIgId,
+    messageId,
+    null,
+    "message_processed"
+  );
+
+  // 1. Find Universal Automation (Original Schema)
+  const query = `
         SELECT * FROM automations WHERE account_id = $1 AND is_universal = TRUE AND is_active = TRUE
         ORDER BY created_at DESC LIMIT 1;`;
-    let automation;
-    try {
-        const { rows } = await pool.query(query, [accountDbId]);
-        if (rows.length === 0) return;
-        automation = rows[0];
-        console.log(`ASYNC: Using universal automation ${automation.id} for DM ${messageId}.`);
-    } catch (dbError) { 
-        console.error(`ASYNC: DB error finding automation for DM ${messageId}:`, dbError); 
-        return; 
-    }
+  let automation;
+  try {
+    const { rows } = await pool.query(query, [accountDbId]);
+    if (rows.length === 0) return;
+    automation = rows[0];
+    console.log(
+      `ASYNC: Using universal automation ${automation.id} for DM ${messageId}.`
+    );
+  } catch (dbError) {
+    console.error(
+      `ASYNC: DB error finding automation for DM ${messageId}:`,
+      dbError
+    );
+    return;
+  }
 
-    // 2. Check Keywords
-    const keywordMatch = checkKeywords(messageText, automation.keywords);
-    if (!keywordMatch) return;
-    console.log(`ASYNC: Keywords matched for DM ${messageId}. Proceeding.`);
+  // 2. Check Keywords
+  const keywordMatch = checkKeywords(messageText, automation.keywords);
+  if (!keywordMatch) return;
+  console.log(`ASYNC: Keywords matched for DM ${messageId}. Proceeding.`);
 
-    // 3. Check Follower Status
-    const isFollowing = await checkFollowerStatus(senderIgId, recipientIgId, accessToken);
-    if (!isFollowing) {
-        const followPromptMessage = constructFollowPrompt(automation, senderIgId, messageId);
-        if (!(await hasSentLog(accountDbId, senderIgId, messageId, 'follow_check_dm'))) {
-            const sent = await sendDirectMessage(senderIgId, followPromptMessage, accessToken, true);
-            if (sent) await logAction(automation.id, accountDbId, senderIgId, messageId, null, 'follow_check_dm');
-        }
-        return; // Don't send YouTube link yet
+  // 3. Check Follower Status
+  const isFollowing = await checkFollowerStatus(
+    senderIgId,
+    recipientIgId,
+    accessToken
+  );
+  if (!isFollowing) {
+    const followPromptMessage = constructFollowPrompt(
+      automation,
+      senderIgId,
+      messageId
+    );
+    if (
+      !(await hasSentLog(accountDbId, senderIgId, messageId, "follow_check_dm"))
+    ) {
+      const sent = await sendDirectMessage(
+        senderIgId,
+        followPromptMessage,
+        accessToken,
+        true
+      );
+      if (sent)
+        await logAction(
+          automation.id,
+          accountDbId,
+          senderIgId,
+          messageId,
+          null,
+          "follow_check_dm"
+        );
     }
+    return; // Don't send YouTube link yet
+  }
 
-    // 4. Send YouTube Link to following users
-    if (!(await hasSentLog(accountDbId, senderIgId, messageId, 'youtube_link_sent'))) {
-        const youtubeMessage = {
-            message: {
-                text: "Thanks for your message! Here's your YouTube link: https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-            }
-        };
-        const sent = await sendDirectMessage(senderIgId, youtubeMessage, accessToken, true);
-        if (sent) await logAction(automation.id, accountDbId, senderIgId, messageId, null, 'youtube_link_sent');
-    }
+  // 4. Send YouTube Link to following users
+  if (
+    !(await hasSentLog(accountDbId, senderIgId, messageId, "youtube_link_sent"))
+  ) {
+    const youtubeMessage = {
+      message: {
+        text: "Thanks for your message! Here's your YouTube link: https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      },
+    };
+    const sent = await sendDirectMessage(
+      senderIgId,
+      youtubeMessage,
+      accessToken,
+      true
+    );
+    if (sent)
+      await logAction(
+        automation.id,
+        accountDbId,
+        senderIgId,
+        messageId,
+        null,
+        "youtube_link_sent"
+      );
+  }
 }
 
 async function processPostbackEventAsync(postbackEvent, accountInfo) {
-     const { accountDbId, accessToken, recipientIgId } = accountInfo;
-     const senderIgId = postbackEvent.sender?.id;
-     const payload = postbackEvent.postback?.payload;
+  const { accountDbId, accessToken, recipientIgId } = accountInfo;
+  const senderIgId = postbackEvent.sender?.id;
+  const payload = postbackEvent.postback?.payload;
 
-     console.log(`ASYNC: Processing postback from ${senderIgId} with payload: ${payload}`);
-     if (!payload || !senderIgId) return;
+  console.log(
+    `ASYNC: Processing postback from ${senderIgId} with payload: ${payload}`
+  );
+  if (!payload || !senderIgId) return;
 
-     const params = new URLSearchParams(payload);
-     const action = params.get('ACTION');
-     const userIdToCheck = params.get('USER');
-     const sourceId = params.get('SOURCE');
+  const params = new URLSearchParams(payload);
+  const action = params.get("ACTION");
+  const userIdToCheck = params.get("USER");
+  const sourceId = params.get("SOURCE");
 
-     if (userIdToCheck !== senderIgId) return;
+  if (userIdToCheck !== senderIgId) return;
 
-     if (action === 'RECHECK_FOLLOW' && userIdToCheck && sourceId) {
-         const isFollowing = await checkFollowerStatus(userIdToCheck, recipientIgId, accessToken);
-         if (isFollowing) {
-             console.log(`ASYNC: User ${userIdToCheck} confirmed following. Sending YouTube link.`);
-             
-             // Send YouTube link if not already sent
-             if (!(await hasSentLog(accountDbId, userIdToCheck, sourceId, 'youtube_link_sent'))) {
-                 const youtubeMessage = {
-                     message: {
-                         text: "Thanks for following! Here's your YouTube link: https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-                     }
-                 };
-                 const sent = await sendDirectMessage(userIdToCheck, youtubeMessage, accessToken, true);
-                 if (sent) {
-                     // Find automation ID if needed for logging
-                     const originalAutomation = await findAutomationForSource(accountDbId, sourceId);
-                     const automationId = originalAutomation ? originalAutomation.id : null;
-                     await logAction(automationId, accountDbId, userIdToCheck, sourceId, null, 'youtube_link_sent');
-                 }
-             } else {
-                 console.log(`YouTube link already sent to user ${userIdToCheck} for source ${sourceId}`);
-             }
-         } else {
-             console.log(`ASYNC: User ${userIdToCheck} still not following after postback.`);
-             await sendDirectMessage(userIdToCheck, { 
-                 message: { 
-                     text: "Please follow us to continue!" 
-                 }
-             }, accessToken, true);
-         }
-     } else {
-         console.log(`ASYNC: Unhandled postback action: ${action}`);
-     }
+  if (action === "RECHECK_FOLLOW" && userIdToCheck && sourceId) {
+    const isFollowing = await checkFollowerStatus(
+      userIdToCheck,
+      recipientIgId,
+      accessToken
+    );
+    if (isFollowing) {
+      console.log(
+        `ASYNC: User ${userIdToCheck} confirmed following. Sending YouTube link.`
+      );
+
+      // Send YouTube link if not already sent
+      if (
+        !(await hasSentLog(
+          accountDbId,
+          userIdToCheck,
+          sourceId,
+          "youtube_link_sent"
+        ))
+      ) {
+        const youtubeMessage = {
+          message: {
+            text: "Thanks for following! Here's your YouTube link: https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+          },
+        };
+        const sent = await sendDirectMessage(
+          userIdToCheck,
+          youtubeMessage,
+          accessToken,
+          true
+        );
+        if (sent) {
+          // Find automation ID if needed for logging
+          const originalAutomation = await findAutomationForSource(
+            accountDbId,
+            sourceId
+          );
+          const automationId = originalAutomation
+            ? originalAutomation.id
+            : null;
+          await logAction(
+            automationId,
+            accountDbId,
+            userIdToCheck,
+            sourceId,
+            null,
+            "youtube_link_sent"
+          );
+        }
+      } else {
+        console.log(
+          `YouTube link already sent to user ${userIdToCheck} for source ${sourceId}`
+        );
+      }
+    } else {
+      console.log(
+        `ASYNC: User ${userIdToCheck} still not following after postback.`
+      );
+      await sendDirectMessage(
+        userIdToCheck,
+        {
+          message: {
+            text: "Please follow us to continue!",
+          },
+        },
+        accessToken,
+        true
+      );
+    }
+  } else {
+    console.log(`ASYNC: Unhandled postback action: ${action}`);
+  }
 }
 
 // Placeholder - needs implementation based on how you link source IDs
 async function findAutomationForSource(accountDbId, sourceId) {
-    console.warn(`ASYNC: findAutomationForSource using basic universal lookup.`);
-     try {
-        const query = `SELECT * FROM automations WHERE account_id = $1 AND is_universal = TRUE AND is_active = TRUE ORDER BY created_at DESC LIMIT 1`;
-        const { rows } = await pool.query(query, [accountDbId]);
-        return rows.length > 0 ? rows[0] : null;
-     } catch(dbError) { 
-         console.error("DB error in findAutomationForSource:", dbError); 
-         return null; 
-     }
+  console.warn(`ASYNC: findAutomationForSource using basic universal lookup.`);
+  try {
+    const query = `SELECT * FROM automations WHERE account_id = $1 AND is_universal = TRUE AND is_active = TRUE ORDER BY created_at DESC LIMIT 1`;
+    const { rows } = await pool.query(query, [accountDbId]);
+    return rows.length > 0 ? rows[0] : null;
+  } catch (dbError) {
+    console.error("DB error in findAutomationForSource:", dbError);
+    return null;
+  }
 }
 
 // ===========================================
 // Utility Functions (Using graph.instagram.com)
 // ===========================================
 
-function checkKeywords(text, keywords, triggerType = 'contains_any') {
-    if (!keywords || keywords.length === 0) return true;
-    const lowerText = text?.toLowerCase() || '';
-    for (const keyword of keywords) {
-        if (!keyword) continue;
-        if (lowerText.includes(keyword.toLowerCase())) return true;
+function checkKeywords(text, keywords, triggerType = "contains_any") {
+  if (!keywords || keywords.length === 0) return true;
+  const lowerText = text?.toLowerCase() || "";
+  for (const keyword of keywords) {
+    if (!keyword) continue;
+    if (lowerText.includes(keyword.toLowerCase())) return true;
+  }
+  return false;
+}
+
+async function checkFollowerStatus(
+  userIdToCheck,
+  businessAccountIgId,
+  accessToken
+) {
+  // Using graph.instagram.com for follower check
+  try {
+    const response = await axios.get(
+      `https://graph.instagram.com/${API_VERSION}/${userIdToCheck}`,
+      {
+        params: {
+          fields:
+            "name,profile_pic,username,follower_count,is_business_follow_user,is_user_follow_business,is_verified_user",
+          access_token: accessToken,
+        },
+      }
+    );
+
+    if (
+      response.data &&
+      typeof response.data.is_user_follow_business === "boolean"
+    ) {
+      console.log(
+        `API check result: User ${userIdToCheck} follows business: ${response.data.is_user_follow_business}`
+      );
+      return response.data.is_user_follow_business;
     }
+
+    console.warn(
+      `Could not determine follower status for ${userIdToCheck}. Response:`,
+      response.data
+    );
     return false;
+  } catch (error) {
+    console.error(
+      `Error checking follower status for ${userIdToCheck}:`,
+      error.response?.data ? JSON.stringify(error.response.data) : error.message
+    );
+    return false;
+  }
 }
 
-async function checkFollowerStatus(userIdToCheck, businessAccountIgId, accessToken) {
-    // Using graph.instagram.com for follower check
-    try {
-        const response = await axios.get(
-            `https://graph.instagram.com/${API_VERSION}/${userIdToCheck}`,
-            {
-                params: {
-                    fields: "name,profile_pic,username,follower_count,is_business_follow_user,is_user_follow_business,is_verified_user",
-                    access_token: accessToken,
-                },
-            }
-        );
-        
-        if (response.data && typeof response.data.is_user_follow_business === 'boolean') {
-            console.log(`API check result: User ${userIdToCheck} follows business: ${response.data.is_user_follow_business}`);
-            return response.data.is_user_follow_business;
-        }
-        
-        console.warn(`Could not determine follower status for ${userIdToCheck}. Response:`, response.data);
-        return false;
-    } catch (error) {
-        console.error(`Error checking follower status for ${userIdToCheck}:`, 
-            error.response?.data ? JSON.stringify(error.response.data) : error.message);
-        return false;
-    }
+async function handlePublicReply(
+  automation,
+  accountInfo,
+  commentId,
+  commenterIgId
+) {
+  const { accountDbId, accessToken } = accountInfo;
+
+  let replyText = "Thanks!";
+  if (
+    automation.auto_reply_messages &&
+    automation.auto_reply_messages.length > 0
+  ) {
+    const randomIndex = Math.floor(
+      Math.random() * automation.auto_reply_messages.length
+    );
+    replyText = automation.auto_reply_messages[randomIndex];
+  }
+
+  // Using graph.instagram.com as requested
+  const url = `https://graph.instagram.com/v22.0/${commentId}/replies`;
+  console.log(
+    `Sending public reply to ${commentId} via ${url}: "${replyText}"`
+  );
+  try {
+    const response = await axios.post(
+      url,
+      { message: replyText },
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+    console.log("Public reply sent:", response.data?.id);
+    await logAction(
+      automation.id,
+      accountDbId,
+      commenterIgId,
+      commentId,
+      automation.media_id,
+      "public_reply"
+    );
+    return true;
+  } catch (error) {
+    console.error(
+      "Error sending public reply:",
+      error.response?.data ? JSON.stringify(error.response.data) : error.message
+    );
+    return false;
+  }
 }
 
-async function handlePublicReply(automation, accountInfo, commentId, commenterIgId) {
-    const { accountDbId, accessToken } = accountInfo;
+async function sendDirectMessage(
+  recipientContext,
+  messagePayload,
+  accessToken,
+  isUserId = false
+) {
+  const postData = {
+    recipient: isUserId
+      ? { id: recipientContext }
+      : { comment_id: recipientContext },
+    message: messagePayload.message,
+  };
 
-    let replyText = "Thanks!";
-    if (automation.auto_reply_messages && automation.auto_reply_messages.length > 0) {
-        const randomIndex = Math.floor(Math.random() * automation.auto_reply_messages.length);
-        replyText = automation.auto_reply_messages[randomIndex];
-    }
-
-    // Using graph.instagram.com as requested
-    const url = `https://graph.instagram.com/${API_VERSION}/${commentId}/replies`;
-    console.log(`Sending public reply to ${commentId} via ${url}: "${replyText}"`);
-    try {
-        const response = await axios.post(url, 
-            { message: replyText }, 
-            { headers: { Authorization: `Bearer ${accessToken}` } }
-        );
-        console.log("Public reply sent:", response.data?.id);
-        await logAction(automation.id, accountDbId, commenterIgId, commentId, automation.media_id, 'public_reply');
-        return true;
-    } catch (error) {
-        console.error("Error sending public reply:", 
-            error.response?.data ? JSON.stringify(error.response.data) : error.message);
-        return false;
-    }
-}
-
-async function sendDirectMessage(recipientContext, messagePayload, accessToken, isUserId = false) {
-    const postData = { 
-        recipient: isUserId ? { id: recipientContext } : { comment_id: recipientContext }, 
-        message: messagePayload.message 
-    };
-
-    // Using graph.instagram.com as requested
-    const url = `https://graph.instagram.com/${API_VERSION}/me/messages`;
-    console.log(`Sending DM via ${url} (isUserId: ${isUserId}):`, JSON.stringify(postData));
-    try {
-        const response = await axios.post(url, postData, { 
-            headers: { 
-                Authorization: `Bearer ${accessToken}`, 
-                "Content-Type": "application/json" 
-            } 
-        });
-        console.log("DM sent successfully:", response.data);
-        return true;
-    } catch (error) {
-        console.error("Error sending DM:", 
-            error.response?.data ? JSON.stringify(error.response.data) : error.message);
-        return false;
-    }
+  // Using graph.instagram.com as requested
+  const url = `https://graph.instagram.com/${API_VERSION}/me/messages`;
+  console.log(
+    `Sending DM via ${url} (isUserId: ${isUserId}):`,
+    JSON.stringify(postData)
+  );
+  try {
+    const response = await axios.post(url, postData, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+    });
+    console.log("DM sent successfully:", response.data);
+    return true;
+  } catch (error) {
+    console.error(
+      "Error sending DM:",
+      error.response?.data ? JSON.stringify(error.response.data) : error.message
+    );
+    return false;
+  }
 }
 
 // Simplified follow prompt without username references
 function constructFollowPrompt(automation, userIgId, sourceId) {
-    const text = "You're not following us. Please follow to get the YouTube link!";
-    const followButtonText = "I've Followed";
-    const postbackPayload = `ACTION=RECHECK_FOLLOW&USER=${userIgId}&SOURCE=${sourceId}`;
+  const text =
+    "You're not following us. Please follow to get the YouTube link!";
+  const followButtonText = "I've Followed";
+  const postbackPayload = `ACTION=RECHECK_FOLLOW&USER=${userIgId}&SOURCE=${sourceId}`;
 
-    return {
-        message: {
-            attachment: {
-                type: "template",
-                payload: {
-                    template_type: "button",
-                    text: text,
-                    buttons: [
-                        { type: "postback", title: followButtonText, payload: postbackPayload }
-                    ]
-                }
-            }
-        }
-    };
+  return {
+    message: {
+      attachment: {
+        type: "template",
+        payload: {
+          template_type: "button",
+          text: text,
+          buttons: [
+            {
+              type: "postback",
+              title: followButtonText,
+              payload: postbackPayload,
+            },
+          ],
+        },
+      },
+    },
+  };
 }
 
 // Logging functions
-async function logAction(automationId, accountDbId, recipientIgId, sourceIgId, mediaIgId, actionType) {
-     if (!accountDbId || !recipientIgId || !actionType) return;
-     console.log(`Logging: ${actionType}, AutoID:${automationId || 'null'}, AccID:${accountDbId}, User:${recipientIgId}, Src:${sourceIgId}`);
-     try {
-        const query = `INSERT INTO automation_logs (automation_id, account_id, recipient_ig_id, source_ig_id, media_ig_id, action_type) VALUES ($1, $2, $3, $4, $5, $6)`;
-        await pool.query(query, [automationId, accountDbId, recipientIgId, sourceIgId || null, mediaIgId || null, actionType]);
-     } catch (error) { console.error("Error logging action:", error); }
+async function logAction(
+  automationId,
+  accountDbId,
+  recipientIgId,
+  sourceIgId,
+  mediaIgId,
+  actionType
+) {
+  if (!accountDbId || !recipientIgId || !actionType) return;
+  console.log(
+    `Logging: ${actionType}, AutoID:${
+      automationId || "null"
+    }, AccID:${accountDbId}, User:${recipientIgId}, Src:${sourceIgId}`
+  );
+  try {
+    const query = `INSERT INTO automation_logs (automation_id, account_id, recipient_ig_id, source_ig_id, media_ig_id, action_type) VALUES ($1, $2, $3, $4, $5, $6)`;
+    await pool.query(query, [
+      automationId,
+      accountDbId,
+      recipientIgId,
+      sourceIgId || null,
+      mediaIgId || null,
+      actionType,
+    ]);
+  } catch (error) {
+    console.error("Error logging action:", error);
+  }
 }
 
-async function countRecentLogs(accountDbId, recipientIgId, sourceIgId, actionType) {
-     if (!accountDbId || !recipientIgId || !sourceIgId || !actionType) return 999;
-     try {
-        const query = `SELECT COUNT(*) FROM automation_logs WHERE account_id = $1 AND recipient_ig_id = $2 AND source_ig_id = $3 AND action_type = $4`;
-        const { rows } = await pool.query(query, [accountDbId, recipientIgId, sourceIgId, actionType]);
-        return parseInt(rows[0].count, 10);
-    } catch (error) { console.error("Error counting logs:", error); return 999; }
+async function countRecentLogs(
+  accountDbId,
+  recipientIgId,
+  sourceIgId,
+  actionType
+) {
+  if (!accountDbId || !recipientIgId || !sourceIgId || !actionType) return 999;
+  try {
+    const query = `SELECT COUNT(*) FROM automation_logs WHERE account_id = $1 AND recipient_ig_id = $2 AND source_ig_id = $3 AND action_type = $4`;
+    const { rows } = await pool.query(query, [
+      accountDbId,
+      recipientIgId,
+      sourceIgId,
+      actionType,
+    ]);
+    return parseInt(rows[0].count, 10);
+  } catch (error) {
+    console.error("Error counting logs:", error);
+    return 999;
+  }
 }
 
 async function hasSentLog(accountDbId, recipientIgId, sourceIgId, actionType) {
-     if (!accountDbId || !recipientIgId || !sourceIgId || !actionType) return true;
-     try {
-        const query = `SELECT 1 FROM automation_logs WHERE account_id = $1 AND recipient_ig_id = $2 AND source_ig_id = $3 AND action_type = $4 LIMIT 1`;
-        const { rows } = await pool.query(query, [accountDbId, recipientIgId, sourceIgId, actionType]);
-        return rows.length > 0;
-    } catch (error) { console.error("Error checking logs:", error); return false; }
+  if (!accountDbId || !recipientIgId || !sourceIgId || !actionType) return true;
+  try {
+    const query = `SELECT 1 FROM automation_logs WHERE account_id = $1 AND recipient_ig_id = $2 AND source_ig_id = $3 AND action_type = $4 LIMIT 1`;
+    const { rows } = await pool.query(query, [
+      accountDbId,
+      recipientIgId,
+      sourceIgId,
+      actionType,
+    ]);
+    return rows.length > 0;
+  } catch (error) {
+    console.error("Error checking logs:", error);
+    return false;
+  }
 }
-
-
-
-
-
 
 module.exports = {
   getWebhookController,
