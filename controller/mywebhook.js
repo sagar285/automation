@@ -891,7 +891,7 @@ async function handlePublicReply(
   try {
     const response = await axios.post(
       url,
-      { message: replyText },
+      { message: "thanks" },
       {
         headers: {
           Authorization: `Bearer ${accessToken}`,
