@@ -297,7 +297,7 @@ const postwebhookHandler = async (req, res) => {
                         },
                         {
                           type: "postback",
-                          PAYLOAD: "",
+                           payload: "FOLLOWED_CONFIRMATION",
                           title: "Yes i followed",
                         },
                       ],
