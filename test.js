@@ -1,24 +1,6 @@
-const crypto = require('crypto');
-const axios = require('axios');
-const { Pool, types } = require('pg'); // Import Pool from pg
-const dotenv = require('dotenv');
 
-// --- Database Configuration ---
-dotenv.config();
-types.setTypeParser(types.builtins.INT8, (val) => val);
-types.setTypeParser(types.builtins.NUMERIC, (val) => val);
-const pool = new Pool({
-    user: process.env.DB_USER || 'instauser',
-    host: process.env.DB_HOST || '213.199.51.192',
-    database: process.env.DB_NAME || 'instaautomation',
-    password: process.env.DB_PASSWORD || 'Postgres@123',
-    port: process.env.DB_PORT || 5432,
-});
-pool.connect().then(() => console.log('DB Connected')).catch(e => console.error("DB Connect Error:", e));
-// --- End Database Configuration ---
 
-// Assume verifyWebhookSignature and getWebhookController are defined elsewhere and exported correctly
-// const { verifyWebhookSignature, getWebhookController } = require('./webhookController'); // Example import
+
 
 const API_VERSION = process.env.IG_API_VERSION || "v22.0"; // Use environment variable
 
