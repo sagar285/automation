@@ -75,7 +75,7 @@ const verify_otp = async (req, res) => {
 
     if(email == "testing.insta@gmail.com"){
            
-      if(otp != 12345){
+      if(otp != 123456){
         return res.status(400).json({ msg: "Invalid or expired OTP" });
       }
 
