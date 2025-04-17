@@ -74,7 +74,10 @@ const verify_otp = async (req, res) => {
     // Check if OTP exists and is valid
 
     if(email == "testing.insta@gmail.com"){
-
+           
+      if(otp != 12345){
+        return res.status(400).json({ msg: "Invalid or expired OTP" });
+      }
 
       const userResult = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
     
@@ -127,8 +130,6 @@ const verify_otp = async (req, res) => {
           isVerified: true
         }
       });
-
-      return res.status(200).json({ msg: "OTP sent successfully to your email" });
       }
     const verificationResult = await pool.query(
       'SELECT * FROM email_verification WHERE email = $1 AND verification_code = $2 AND expires_at > CURRENT_TIMESTAMP',
