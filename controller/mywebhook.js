@@ -443,10 +443,151 @@ const postwebhookHandler = async (req, res) => {
 // ASYNCHRONOUS Event Processors
 // ===========================================
 
+// async function processCommentEventAsync(commentData, accountInfo) {
+//   const { accountDbId, accessToken, recipientIgId } = accountInfo;
+//   const mediaId = commentData.media?.id;
+//   const commentId = commentData.id;
+//   console.log(commentId,"this is comment id from");
+//   const commentText = commentData.text?.toLowerCase() || "";
+//   const commenterIgId = commentData.from?.id;
+
+//   if (!mediaId || !commentId || !commentText || !commenterIgId) {
+//     console.log("Incomplete comment data, skipping processing");
+//     return;
+//   }
+
+//   console.log(`ASYNC: Processing comment ${commentId} on media ${mediaId}`);
+
+//   // Check if this comment has already been processed
+//   if (
+//     await hasSentLog(accountDbId, commenterIgId, commentId, "comment_processed")
+//   ) {
+//     console.log(`Comment ${commentId} already processed. Skipping.`);
+//     return;
+//   }
+
+//   // Mark comment as processed
+//   await logAction(
+//     null,
+//     accountDbId,
+//     commenterIgId,
+//     commentId,
+//     mediaId,
+//     "comment_processed"
+//   );
+
+//   // 1. Find Automation (Original Schema)
+//   const query = `
+//         SELECT * FROM automations
+//         WHERE account_id = $1 AND (media_id = $2 OR is_universal = TRUE)
+//         ORDER BY CASE WHEN media_id = $2 THEN 1 ELSE 2 END, created_at DESC LIMIT 1;`;
+//   let automation;
+//   try {
+//     const { rows } = await pool.query(query, [accountDbId, mediaId]);
+//     if (rows.length === 0) return;
+//     automation = rows[0];
+//     console.log(
+//       `ASYNC: Using automation ${automation.id} for comment ${commentId}., this automation exist`
+//     );
+//   } catch (dbError) {
+//     console.error(
+//       `ASYNC: DB error finding automation for comment ${commentId}:`,
+//       dbError
+//     );
+//     return;
+//   }
+
+//   // 2. Check Keywords
+//   const keywordMatch = checkKeywords(commentText, automation.keywords);
+
+//   // 3. Handle Public Auto-Reply (only send one)
+//   if (
+//     automation.auto_public_reply &&
+//     !(await hasSentLog(accountDbId, commenterIgId, commentId, "public_reply"))
+//   ) {
+//     await handlePublicReply(automation, accountInfo, commentId, commenterIgId);
+//   }
+
+//   // 4. Proceed with DM ONLY if keywords matched
+//   if (!keywordMatch) return;
+//   console.log(`ASYNC: Keywords matched for comment ${commentId}. Proceeding.`);
+
+//   // 5. Check Follower Status (if required)
+//   if (automation.ask_to_follow) {
+//     const isFollowing = await checkFollowerStatus(
+//       commenterIgId,
+//       recipientIgId,
+//       accessToken
+//     );
+//     if (!isFollowing) {
+//       const followPromptMessage = constructFollowPrompt(
+//         automation,
+//         commenterIgId,
+//         commentId
+//       );
+//       if (
+//         !(await hasSentLog(
+//           accountDbId,
+//           commenterIgId,
+//           commentId,
+//           "follow_check_dm"
+//         ))
+//       ) {
+//         const sent = await sendDirectMessage(
+//           commentId,
+//           followPromptMessage,
+//           accessToken
+//         );
+//         if (sent)
+//           await logAction(
+//             automation.id,
+//             accountDbId,
+//             commenterIgId,
+//             commentId,
+//             mediaId,
+//             "follow_check_dm"
+//           );
+//       }
+//       return; // Don't send main DM yet
+//     }
+//   }
+
+//   // 6. Send Main DM (with YouTube link)
+//   if (
+//     !(await hasSentLog(
+//       accountDbId,
+//       commenterIgId,
+//       commentId,
+//       "youtube_link_sent"
+//     ))
+//   ) {
+//     const youtubeMessage = {
+//       message: {
+//         text: "Thanks for your comment! Here's your YouTube link: https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+//       },
+//     };
+//     const sent = await sendDirectMessage(
+//       commentId,
+//       youtubeMessage,
+//       accessToken
+//     );
+//     if (sent)
+//       await logAction(
+//         automation.id,
+//         accountDbId,
+//         commenterIgId,
+//         commentId,
+//         mediaId,
+//         "youtube_link_sent"
+//       );
+//   }
+// }
+
 async function processCommentEventAsync(commentData, accountInfo) {
   const { accountDbId, accessToken, recipientIgId } = accountInfo;
   const mediaId = commentData.media?.id;
   const commentId = commentData.id;
+  console.log(commentId, "this is comment id from");
   const commentText = commentData.text?.toLowerCase() || "";
   const commenterIgId = commentData.from?.id;
 
@@ -457,28 +598,16 @@ async function processCommentEventAsync(commentData, accountInfo) {
 
   console.log(`ASYNC: Processing comment ${commentId} on media ${mediaId}`);
 
-  // Check if this comment has already been processed
-  if (
-    await hasSentLog(accountDbId, commenterIgId, commentId, "comment_processed")
-  ) {
+  // IMPORTANT: Check if this comment has already been processed BEFORE doing anything else
+  if (await hasSentLog(accountDbId, commenterIgId, commentId, "comment_processed")) {
     console.log(`Comment ${commentId} already processed. Skipping.`);
     return;
   }
 
-  // Mark comment as processed
-  await logAction(
-    null,
-    accountDbId,
-    commenterIgId,
-    commentId,
-    mediaId,
-    "comment_processed"
-  );
-
   // 1. Find Automation (Original Schema)
   const query = `
         SELECT * FROM automations
-        WHERE account_id = $1 AND (media_id = $2 OR is_universal = TRUE) AND is_active = TRUE
+        WHERE account_id = $1 AND (media_id = $2 OR is_universal = TRUE)
         ORDER BY CASE WHEN media_id = $2 THEN 1 ELSE 2 END, created_at DESC LIMIT 1;`;
   let automation;
   try {
@@ -486,7 +615,7 @@ async function processCommentEventAsync(commentData, accountInfo) {
     if (rows.length === 0) return;
     automation = rows[0];
     console.log(
-      `ASYNC: Using automation ${automation.id} for comment ${commentId}.`
+      `ASYNC: Using automation ${automation.id} for comment ${commentId}., this automation exist`
     );
   } catch (dbError) {
     console.error(
@@ -496,20 +625,44 @@ async function processCommentEventAsync(commentData, accountInfo) {
     return;
   }
 
-  // 2. Check Keywords
+  // 2. Check Keywords EARLY
   const keywordMatch = checkKeywords(commentText, automation.keywords);
 
-  // 3. Handle Public Auto-Reply (only send one)
+  // Mark comment as processed AFTER checking if it's already been processed
+  // but BEFORE taking any actions
+  await logAction(
+    null,
+    accountDbId,
+    commenterIgId,
+    commentId,
+    mediaId,
+    "comment_processed"
+  );
+
+  // 3. Handle Public Auto-Reply ONLY if keywords match
+  // This is likely what's causing multiple replies - you're replying without keyword filtering
   if (
+    keywordMatch && 
     automation.auto_public_reply &&
     !(await hasSentLog(accountDbId, commenterIgId, commentId, "public_reply"))
   ) {
     await handlePublicReply(automation, accountInfo, commentId, commenterIgId);
   }
 
-  // 4. Proceed with DM ONLY if keywords matched
-  if (!keywordMatch) return;
-  console.log(`ASYNC: Keywords matched for comment ${commentId}. Proceeding.`);
+  // 4. Don't proceed with DM if keywords didn't match
+  if (!keywordMatch) {
+    console.log(`ASYNC: Keywords didn't match for comment ${commentId}. Skipping DM.`);
+    return;
+  }
+  
+  console.log(`ASYNC: Keywords matched for comment ${commentId}. Proceeding with DM.`);
+
+  // Check if DM has already been sent for this comment to prevent duplicate DMs
+  if (await hasSentLog(accountDbId, commenterIgId, commentId, "follow_check_dm") ||
+      await hasSentLog(accountDbId, commenterIgId, commentId, "youtube_link_sent")) {
+    console.log(`ASYNC: DM already sent for comment ${commentId}. Skipping.`);
+    return;
+  }
 
   // 5. Check Follower Status (if required)
   if (automation.ask_to_follow) {
@@ -524,61 +677,56 @@ async function processCommentEventAsync(commentData, accountInfo) {
         commenterIgId,
         commentId
       );
-      if (
-        !(await hasSentLog(
-          accountDbId,
-          commenterIgId,
-          commentId,
-          "follow_check_dm"
-        ))
-      ) {
-        const sent = await sendDirectMessage(
-          commentId,
-          followPromptMessage,
-          accessToken
-        );
-        if (sent)
-          await logAction(
-            automation.id,
-            accountDbId,
-            commenterIgId,
-            commentId,
-            mediaId,
-            "follow_check_dm"
-          );
-      }
-      return; // Don't send main DM yet
-    }
-  }
-
-  // 6. Send Main DM (with YouTube link)
-  if (
-    !(await hasSentLog(
-      accountDbId,
-      commenterIgId,
-      commentId,
-      "youtube_link_sent"
-    ))
-  ) {
-    const youtubeMessage = {
-      message: {
-        text: "Thanks for your comment! Here's your YouTube link: https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-      },
-    };
-    const sent = await sendDirectMessage(
-      commentId,
-      youtubeMessage,
-      accessToken
-    );
-    if (sent)
+      // Log BEFORE sending DM to prevent race conditions
       await logAction(
         automation.id,
         accountDbId,
         commenterIgId,
         commentId,
         mediaId,
-        "youtube_link_sent"
+        "follow_check_dm"
       );
+      
+      const sent = await sendDirectMessage(
+        commenterIgId, // IMPORTANT: Send DM using user ID, not comment ID
+        followPromptMessage,
+        accessToken,
+        true // Indicate this is a user ID, not a comment ID
+      );
+      
+      if (!sent) {
+        console.error(`Failed to send follow check DM to user ${commenterIgId}`);
+      }
+      return; // Don't send main DM yet
+    }
+  }
+
+  // 6. Send Main DM (with YouTube link)
+  // Log BEFORE sending DM to prevent race conditions
+  await logAction(
+    automation.id,
+    accountDbId,
+    commenterIgId,
+    commentId,
+    mediaId,
+    "youtube_link_sent"
+  );
+  
+  const youtubeMessage = {
+    message: {
+      text: "Thanks for your comment! Here's your YouTube link: https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    },
+  };
+  
+  const sent = await sendDirectMessage(
+    commenterIgId, // IMPORTANT: Send DM using user ID, not comment ID
+    youtubeMessage,
+    accessToken,
+    true // Indicate this is a user ID, not a comment ID
+  );
+  
+  if (!sent) {
+    console.error(`Failed to send YouTube link DM to user ${commenterIgId}`);
   }
 }
 
