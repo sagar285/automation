@@ -708,7 +708,7 @@ async function processCommentEventAsync(commentData, accountInfo) {
         commenterIgId, // IMPORTANT: Send DM using user ID, not comment ID
         followPromptMessage,
         accessToken,
-        true // Indicate this is a user ID, not a comment ID
+        // true // Indicate this is a user ID, not a comment ID
       );
 
       if (!sent) {
