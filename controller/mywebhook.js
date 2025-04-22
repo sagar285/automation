@@ -355,89 +355,87 @@ const postwebhookHandler = async (req, res) => {
   }
 
   // Send 200 OK immediately to ensure fast response
-  res.sendStatus(200);
+  res.status(200).send({ message: "sucess" });
   console.log("Sent 200 OK response immediately. Processing async...");
 
   // Process entries asynchronously
-   async () => {
-    try {
-      // Process entries one by one
-      for (const entry of req.body.entry) {
-        
-        const recipientIgId = entry.id; // Your Account's IGSID
-        if (!recipientIgId) {
-          console.warn(
-            "Webhook entry missing recipient ID (entry.id). Skipping."
-          );
-          continue;
-        }
 
-        // 1. Find Account Info using user_insta_business_id
-        let accountInfo;
-        try {
-          const accountQuery = `
+  try {
+    // Process entries one by one
+    for (const entry of req.body.entry) {
+      const recipientIgId = entry.id; // Your Account's IGSID
+      if (!recipientIgId) {
+        console.warn(
+          "Webhook entry missing recipient ID (entry.id). Skipping."
+        );
+        continue;
+      }
+
+      // 1. Find Account Info using user_insta_business_id
+      let accountInfo;
+      try {
+        const accountQuery = `
                         SELECT id as account_db_id, access_token
                         FROM accounts
                         WHERE user_insta_business_id = $1 AND is_active = TRUE LIMIT 1`;
-          const { rows } = await pool.query(accountQuery, [recipientIgId]);
+        const { rows } = await pool.query(accountQuery, [recipientIgId]);
 
-          if (rows.length === 0) {
-            console.log(
-              `No active account found for business ID ${recipientIgId}.`
-            );
-            continue; // Skip this entry
-          }
-          accountInfo = {
-            accountDbId: rows[0].account_db_id,
-            accessToken: rows[0].access_token,
-            recipientIgId: recipientIgId,
-          };
-
-          if (!accountInfo.accessToken) {
-            console.error(
-              `CRITICAL: Access token missing for account ${accountInfo.accountDbId}.`
-            );
-            continue; // Skip this entry
-          }
-
+        if (rows.length === 0) {
           console.log(
-            `ASYNC: Starting processing for account ${accountInfo.accountDbId}`
+            `No active account found for business ID ${recipientIgId}.`
           );
-
-          // Process Comments
-          if (entry.changes && Array.isArray(entry.changes)) {
-            for (const change of entry.changes) {
-              if (change.field === "comments" && change.value) {
-                await processCommentEventAsync(change.value, accountInfo);
-              }
-            }
-          }
-
-          // Process DMs
-          if (entry.messaging && Array.isArray(entry.messaging)) {
-            for (const messageEvent of entry.messaging) {
-              if (messageEvent.message && !messageEvent.message.is_echo) {
-                await processDirectMessageEventAsync(messageEvent, accountInfo);
-              } else if (messageEvent.postback) {
-                await processPostbackEventAsync(messageEvent, accountInfo);
-              }
-            }
-          }
-
-          console.log(
-            `ASYNC: Finished processing for account ${accountInfo.accountDbId}`
-          );
-        } catch (dbError) {
-          console.error(
-            `Database error looking up account for ${recipientIgId}:`,
-            dbError
-          );
+          continue; // Skip this entry
         }
-      } // End for entry loop
-    } catch (asyncError) {
-      console.error("ASYNC Error in webhook processing:", asyncError);
-    }
-  };
+        accountInfo = {
+          accountDbId: rows[0].account_db_id,
+          accessToken: rows[0].access_token,
+          recipientIgId: recipientIgId,
+        };
+
+        if (!accountInfo.accessToken) {
+          console.error(
+            `CRITICAL: Access token missing for account ${accountInfo.accountDbId}.`
+          );
+          continue; // Skip this entry
+        }
+
+        console.log(
+          `ASYNC: Starting processing for account ${accountInfo.accountDbId}`
+        );
+
+        // Process Comments
+        if (entry.changes && Array.isArray(entry.changes)) {
+          for (const change of entry.changes) {
+            if (change.field === "comments" && change.value) {
+              await processCommentEventAsync(change.value, accountInfo);
+            }
+          }
+        }
+
+        // Process DMs
+        if (entry.messaging && Array.isArray(entry.messaging)) {
+          for (const messageEvent of entry.messaging) {
+            if (messageEvent.message && !messageEvent.message.is_echo) {
+              await processDirectMessageEventAsync(messageEvent, accountInfo);
+            } else if (messageEvent.postback) {
+              await processPostbackEventAsync(messageEvent, accountInfo);
+            }
+          }
+        }
+
+        console.log(
+          `ASYNC: Finished processing for account ${accountInfo.accountDbId}`
+        );
+      } catch (dbError) {
+        console.error(
+          `Database error looking up account for ${recipientIgId}:`,
+          dbError
+        );
+      }
+    } // End for entry loop
+  } catch (asyncError) {
+    console.error("ASYNC Error in webhook processing:", asyncError);
+  }
 };
 
 // ===========================================
@@ -600,7 +598,9 @@ async function processCommentEventAsync(commentData, accountInfo) {
   console.log(`ASYNC: Processing comment ${commentId} on media ${mediaId}`);
 
   // IMPORTANT: Check if this comment has already been processed BEFORE doing anything else
-  if (await hasSentLog(accountDbId, commenterIgId, commentId, "comment_processed")) {
+  if (
+    await hasSentLog(accountDbId, commenterIgId, commentId, "comment_processed")
+  ) {
     console.log(`Comment ${commentId} already processed. Skipping.`);
     return;
   }
@@ -643,7 +643,7 @@ async function processCommentEventAsync(commentData, accountInfo) {
   // 3. Handle Public Auto-Reply ONLY if keywords match
   // This is likely what's causing multiple replies - you're replying without keyword filtering
   if (
-    keywordMatch && 
+    keywordMatch &&
     automation.auto_public_reply &&
     !(await hasSentLog(accountDbId, commenterIgId, commentId, "public_reply"))
   ) {
@@ -652,15 +652,31 @@ async function processCommentEventAsync(commentData, accountInfo) {
 
   // 4. Don't proceed with DM if keywords didn't match
   if (!keywordMatch) {
-    console.log(`ASYNC: Keywords didn't match for comment ${commentId}. Skipping DM.`);
+    console.log(
+      `ASYNC: Keywords didn't match for comment ${commentId}. Skipping DM.`
+    );
     return;
   }
-  
-  console.log(`ASYNC: Keywords matched for comment ${commentId}. Proceeding with DM.`);
+
+  console.log(
+    `ASYNC: Keywords matched for comment ${commentId}. Proceeding with DM.`
+  );
 
   // Check if DM has already been sent for this comment to prevent duplicate DMs
-  if (await hasSentLog(accountDbId, commenterIgId, commentId, "follow_check_dm") ||
-      await hasSentLog(accountDbId, commenterIgId, commentId, "youtube_link_sent")) {
+  if (
+    (await hasSentLog(
+      accountDbId,
+      commenterIgId,
+      commentId,
+      "follow_check_dm"
+    )) ||
+    (await hasSentLog(
+      accountDbId,
+      commenterIgId,
+      commentId,
+      "youtube_link_sent"
+    ))
+  ) {
     console.log(`ASYNC: DM already sent for comment ${commentId}. Skipping.`);
     return;
   }
@@ -687,16 +703,18 @@ async function processCommentEventAsync(commentData, accountInfo) {
         mediaId,
         "follow_check_dm"
       );
-      
+
       const sent = await sendDirectMessage(
         commenterIgId, // IMPORTANT: Send DM using user ID, not comment ID
         followPromptMessage,
         accessToken,
         true // Indicate this is a user ID, not a comment ID
       );
-      
+
       if (!sent) {
-        console.error(`Failed to send follow check DM to user ${commenterIgId}`);
+        console.error(
+          `Failed to send follow check DM to user ${commenterIgId}`
+        );
       }
       return; // Don't send main DM yet
     }
@@ -712,20 +730,20 @@ async function processCommentEventAsync(commentData, accountInfo) {
     mediaId,
     "youtube_link_sent"
   );
-  
+
   const youtubeMessage = {
     message: {
       text: "Thanks for your comment! Here's your YouTube link: https://www.youtube.com/watch?v=dQw4w9WgXcQ",
     },
   };
-  
+
   const sent = await sendDirectMessage(
     commenterIgId, // IMPORTANT: Send DM using user ID, not comment ID
     youtubeMessage,
     accessToken,
     true // Indicate this is a user ID, not a comment ID
   );
-  
+
   if (!sent) {
     console.error(`Failed to send YouTube link DM to user ${commenterIgId}`);
   }
@@ -857,7 +875,7 @@ async function processPostbackEventAsync(postbackEvent, accountInfo) {
   const { accountDbId, accessToken, recipientIgId } = accountInfo;
   const senderIgId = postbackEvent.sender?.id;
   const payload = postbackEvent.postback?.payload;
-console.log("when this postback run i don't know but i need to discover")
+  console.log("when this postback run i don't know but i need to discover");
   console.log(
     `ASYNC: Processing postback from ${senderIgId} with payload: ${payload}`
   );
@@ -950,9 +968,8 @@ async function findAutomationForSource(accountDbId, sourceId) {
   try {
     const query = `SELECT * FROM automations WHERE account_id = $1 AND is_universal = TRUE AND is_active = TRUE ORDER BY created_at DESC LIMIT 1`;
     const { rows } = await pool.query(query, [accountDbId]);
-    console.log("rows will e founded here for automation",rows[0]);
+    console.log("rows will e founded here for automation", rows[0]);
     return rows.length > 0 ? rows[0] : null;
-
   } catch (dbError) {
     console.error("DB error in findAutomationForSource:", dbError);
     return null;
@@ -964,9 +981,7 @@ async function findAutomationForSource(accountDbId, sourceId) {
 // ===========================================
 
 function checkKeywords(text, keywords, triggerType = "contains_any") {
-
   console.log("checking keywords in db automation");
-
 
   if (!keywords || keywords.length === 0) return true;
   const lowerText = text?.toLowerCase() || "";
