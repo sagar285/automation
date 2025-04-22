@@ -359,10 +359,11 @@ const postwebhookHandler = async (req, res) => {
   console.log("Sent 200 OK response immediately. Processing async...");
 
   // Process entries asynchronously
-  setTimeout(async () => {
+   async () => {
     try {
       // Process entries one by one
       for (const entry of req.body.entry) {
+        
         const recipientIgId = entry.id; // Your Account's IGSID
         if (!recipientIgId) {
           console.warn(
@@ -436,7 +437,7 @@ const postwebhookHandler = async (req, res) => {
     } catch (asyncError) {
       console.error("ASYNC Error in webhook processing:", asyncError);
     }
-  }, 0);
+  };
 };
 
 // ===========================================
@@ -856,7 +857,7 @@ async function processPostbackEventAsync(postbackEvent, accountInfo) {
   const { accountDbId, accessToken, recipientIgId } = accountInfo;
   const senderIgId = postbackEvent.sender?.id;
   const payload = postbackEvent.postback?.payload;
-
+console.log("when this postback run i don't know but i need to discover")
   console.log(
     `ASYNC: Processing postback from ${senderIgId} with payload: ${payload}`
   );
@@ -949,7 +950,9 @@ async function findAutomationForSource(accountDbId, sourceId) {
   try {
     const query = `SELECT * FROM automations WHERE account_id = $1 AND is_universal = TRUE AND is_active = TRUE ORDER BY created_at DESC LIMIT 1`;
     const { rows } = await pool.query(query, [accountDbId]);
+    console.log("rows will e founded here for automation",rows[0]);
     return rows.length > 0 ? rows[0] : null;
+
   } catch (dbError) {
     console.error("DB error in findAutomationForSource:", dbError);
     return null;
@@ -961,6 +964,10 @@ async function findAutomationForSource(accountDbId, sourceId) {
 // ===========================================
 
 function checkKeywords(text, keywords, triggerType = "contains_any") {
+
+  console.log("checking keywords in db automation");
+
+
   if (!keywords || keywords.length === 0) return true;
   const lowerText = text?.toLowerCase() || "";
   for (const keyword of keywords) {
