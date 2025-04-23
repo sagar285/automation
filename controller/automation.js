@@ -7,6 +7,8 @@ const getAutomations = async (req, res) => {
   try {
     const userId = req.user.userId;
 
+    console.log(userId,"userid");
+
     // Get all automations for accounts where user is an admin
     const query = `
       SELECT a.* 

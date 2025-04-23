@@ -5,10 +5,10 @@ const automationController = require('../controller/automation');
 const authMiddleware = require('../middleware/auth');
 
 // Apply auth middleware to all routes
-router.use(authMiddleware);
+
 
 // Get all automations for a user's accounts
-router.get('/', automationController.getAutomations);
+router.get('/',authMiddleware, automationController.getAutomations);
 
 // Get a single automation by ID
 router.get('/:id', automationController.getAutomationById);
@@ -17,7 +17,7 @@ router.get('/:id', automationController.getAutomationById);
 router.post('/', automationController.createAutomation);
 
 // Update an existing automation
-router.put('/:id', automationController.updateAutomation);
+router.put('/:id', automationController.updateAutomation); 
 
 // Delete an automation
 router.delete('/:id', automationController.deleteAutomation);

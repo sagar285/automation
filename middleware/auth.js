@@ -13,18 +13,25 @@ const authMiddleware = (req, res, next) => {
     
     // Extract token
     const token = authHeader.split(' ')[1];
+
+    console.log("extract token",token);
     
     // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
+
+
+    console.log("verify token",decoded);
     // Add user data to request
     req.user = decoded;
+
+
     
     // Continue to the route handler
     next();
   } catch (error) {
     console.error('Auth error:', error.message);
-    return res.status(401).json({ error: 'Unauthorized - Invalid token' });
+    return res.status(401).json({ error: 'Unauthorized - Invalid token' + error.message });
   }
 };
 
