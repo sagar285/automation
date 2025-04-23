@@ -5,10 +5,10 @@ const automationController = require('../controller/automation');
 const authMiddleware = require('../middleware/auth');
 
 // Apply auth middleware to all routes
-
+router.use(authMiddleware)
 
 // Get all automations for a user's accounts
-router.get('/',authMiddleware, automationController.getAutomations);
+router.get('/',automationController.getAutomations);
 
 // Get a single automation by ID
 router.get('/:id', automationController.getAutomationById);
