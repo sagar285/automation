@@ -15,7 +15,8 @@ app.use(express.json());
 app.use(cookieParser());
 app.use(cors({
   // origin: 'http://localhost:3000', // Your frontend URL
-  origin: 'https://fliqrai.vercel.app', // Your frontend URL
+  // origin: 'https://fliqrai.vercel.app', // Your frontend URL
+  origin: 'https://engage.fliqr.ai/', // Your frontend URL
   credentials: true 
 }))
 app.use(webhookrouter);
