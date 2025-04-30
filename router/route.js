@@ -40,7 +40,7 @@ router.get("/auth/instagram/", (req, res) => {
   // Store user ID in cache with state as key
 
   // Generate the Instagram OAuth URL
-  const clientId = "2901287790027729";
+  const clientId = process.env.INSTAGRAM_APP_ID;
   const redirectUri = "https://insta.fliqr.ai/auth/instagram/callback";
   const scope = [
     "instagram_business_basic",
