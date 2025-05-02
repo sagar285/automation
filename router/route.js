@@ -185,7 +185,7 @@ router.get("/auth/instagram/callback", async (req, res) => {
     }
 
     // Redirect to frontend
-    res.redirect(`${process.env.FRONTEND_URL}/addinstagram`);
+    res.redirect(`${process.env.FRONTEND_URL}/dashboard`);
   } catch (error) {
     console.error("Error in Instagram callback:", error);
     res.redirect(
