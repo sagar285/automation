@@ -413,6 +413,7 @@ const postwebhookHandler = async (req, res) => {
         if (entry.changes && Array.isArray(entry.changes)) {
           for (const change of entry.changes) {
             if (change.field === "comments" && change.value) {
+              console.log("yhan se comment ka reply dene baala function call hua hai")
               await processCommentEventAsync(change.value, accountInfo);
             }
           }
@@ -622,6 +623,11 @@ async function processCommentEventAsync(commentData, accountInfo) {
   let automation;
   try {
     const { rows } = await pool.query(query, [accountDbId, mediaId]);
+
+
+    console.log(rows.length,"yhan par check kar rahe hai is media par koi auotomation lagi hai yaa nhi");
+
+
     if (rows.length === 0) return;
     automation = rows[0];
     console.log(
@@ -638,6 +644,8 @@ async function processCommentEventAsync(commentData, accountInfo) {
   // 2. Check Keywords EARLY
   const keywordMatch = checkKeywords(commentText, automation.keywords);
 
+  console.log(keywordMatch,"keyword match ka result hai proper aya h ya nhi");
+
   // Mark comment as processed AFTER checking if it's already been processed
   // but BEFORE taking any actions
   await logAction(
@@ -651,13 +659,17 @@ async function processCommentEventAsync(commentData, accountInfo) {
 
   // 3. Handle Public Auto-Reply ONLY if keywords match
   // This is likely what's causing multiple replies - you're replying without keyword filtering
-  if (
-    keywordMatch &&
-    automation.auto_public_reply &&
-    !(await hasSentLog(accountDbId, commenterIgId, commentId, "public_reply"))
-  ) {
-    await handlePublicReply(automation, accountInfo, commentId, commenterIgId);
-  }
+  // if (
+  //   keywordMatch &&
+  //   automation.auto_public_reply &&
+  //   !(await hasSentLog(accountDbId, commenterIgId, commentId, "public_reply"))
+  // ) {
+  //   await handlePublicReply(automation, accountInfo, commentId, commenterIgId);
+  // }
+
+   if(keywordMatch){
+     await handlePublicReply(automation, accountInfo, commentId, commenterIgId);
+   }
 
   // 4. Don't proceed with DM if keywords didn't match
   if (!keywordMatch) {
