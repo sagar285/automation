@@ -1004,7 +1004,7 @@ async function findAutomationForSource(accountDbId, sourceId) {
 // ===========================================
 
 function checkKeywords(text, keywords, triggerType = "contains_any") {
-  console.log("checking keywords in db automation");
+  console.log("checking keywords in db automation",text,keywords);
 
   if (!keywords || keywords.length === 0) return true;
   const lowerText = text?.toLowerCase() || "";
