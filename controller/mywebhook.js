@@ -373,7 +373,6 @@ const postwebhookHandler = async (req, res) => {
 
       // 1. Find Account Info using user_insta_business_id
       let accountInfo;
-      console.log("accountInformation is here",accountInfo);
       
       try {
         const accountQuery = `
@@ -395,6 +394,9 @@ const postwebhookHandler = async (req, res) => {
           accessToken: rows[0].access_token,
           recipientIgId: recipientIgId,
         };
+
+        console.log("accountInformation is here",accountInfo);
+        
 
         if (!accountInfo.accessToken) {
           console.error(
@@ -430,7 +432,10 @@ const postwebhookHandler = async (req, res) => {
         console.log(
           `ASYNC: Finished processing for account ${accountInfo.accountDbId}`
         );
+
+
       } catch (dbError) {
+        console.log("yhi hai error")
         console.error(
           `Database error looking up account for ${recipientIgId}:`,
           dbError
