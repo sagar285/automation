@@ -724,7 +724,7 @@ async function processCommentEventAsync(commentData, accountInfo) {
         mediaId,
         "follow_check_dm"
       );
-
+     console.log("send direct message yhan se chla");
       const sent = await sendDirectMessage(
         commentId, // IMPORTANT: Send DM using user ID, not comment ID
         followPromptMessage,
@@ -1117,6 +1117,8 @@ async function sendDirectMessage(
   accessToken,
   isUserId = false
 ) {
+
+  console.log(recipientContext,"comment id or recipentid",messagePayload);
   const postData = {
     recipient: isUserId
       ? { id: recipientContext }
