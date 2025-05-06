@@ -373,6 +373,8 @@ const postwebhookHandler = async (req, res) => {
 
       // 1. Find Account Info using user_insta_business_id
       let accountInfo;
+      console.log("accountInformation is here",accountInfo);
+      
       try {
         const accountQuery = `
                         SELECT id as account_db_id, access_token
@@ -385,6 +387,8 @@ const postwebhookHandler = async (req, res) => {
             `No active account found for business ID ${recipientIgId}.`
           );
           continue; // Skip this entry
+          console.log("continueeee");
+          
         }
         accountInfo = {
           accountDbId: rows[0].account_db_id,
@@ -585,7 +589,7 @@ const postwebhookHandler = async (req, res) => {
 async function processCommentEventAsync(commentData, accountInfo) {
   const { accountDbId, accessToken, recipientIgId } = accountInfo;
   const mediaId = commentData.media?.id;
-  const commentId = commentData.id;
+  const commentId = commentData.id;`  `
   console.log(commentId, "this is comment id from");
   const commentText = commentData.text?.toLowerCase() || "";
   const commenterIgId = commentData.from?.id;
@@ -744,6 +748,7 @@ async function processCommentEventAsync(commentData, accountInfo) {
     accessToken,
     true // Indicate this is a user ID, not a comment ID
   );
+console.log("this is the sent",sent)
 
   if (!sent) {
     console.error(`Failed to send YouTube link DM to user ${commenterIgId}`);
