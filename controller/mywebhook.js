@@ -760,10 +760,10 @@ async function processCommentEventAsync(commentData, accountInfo) {
   };
 
   const sent = await sendDirectMessage(
-    commenterIgId, // IMPORTANT: Send DM using user ID, not comment ID
+    commentId, // IMPORTANT: Send DM using user ID, not comment ID
     youtubeMessage,
     accessToken,
-    true // Indicate this is a user ID, not a comment ID
+    false // Indicate this is a user ID, not a comment ID
   );
 console.log("this is the sent",sent)
 
