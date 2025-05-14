@@ -307,7 +307,7 @@ const updateAutomation = async (req, res) => {
     console.error('Error updating automation:', error);
     return res.status(500).json({
       success: false,
-      error: 'Server error'
+      error: 'Server error' + error.message
     });
   }
 };
